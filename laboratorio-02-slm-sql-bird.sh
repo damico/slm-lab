@@ -111,7 +111,7 @@ CUDA_VISIBLE_DEVICES=1 python lab_runtime.py train \
 
 # Bloco 10 de laboratorio-02-slm-sql-bird.md: 6. Verificar memória e treinar
 etapa_10() {
-CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 \
+CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- \
   lab_runtime.py train --data data --run runs/smoke_2gpu \
   --max-steps 20 --accum 8 --eval-limit 32 \
   2>&1 | tee logs/smoke_2gpu.log
@@ -123,7 +123,7 @@ nvidia-smi --query-gpu=timestamp,index,memory.used,utilization.gpu,power.draw,te
   --format=csv -l 2 > logs/gpu_train.csv &
 LAB_MONITOR_PID=$!
 CUDA_VISIBLE_DEVICES=0,1 /usr/bin/time -v \
-  torchrun --standalone --nproc_per_node=2 lab_runtime.py train \
+  torchrun --standalone --nproc-per-node=2 -- lab_runtime.py train \
   --data data --run runs/main_r16_lr1e4 \
   --epochs 2 --accum 8 --rank 16 --lr 0.0001 --eval-limit 256 \
   2>&1 | tee logs/main_train.log
@@ -134,7 +134,7 @@ kill "$LAB_MONITOR_PID"
 etapa_12() {
 python listar_checkpoints.py
 # Exemplo de forma, substituindo pelo caminho que o comando acima mostrou:
-# CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 lab_runtime.py train \
+# CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- lab_runtime.py train \
 #   --data data --run runs/main_r16_lr1e4 --epochs 2 --accum 8 \
 #   --resume runs/main_r16_lr1e4/checkpoint-N
 }

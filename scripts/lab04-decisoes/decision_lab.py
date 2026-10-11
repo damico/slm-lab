@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import time
+from datetime import timedelta
 from pathlib import Path
 from decision_core import (adapter_hash, digest, file_hash, meta_path, read_json,
                           read_rows, save_json, tokenizer, write_rows)
@@ -32,11 +33,25 @@ def gpu_model(bundle, classifier=True):
     return model, bf16
 
 
+def initialize_training_devices():
+    import torch
+    if int(os.environ.get("WORLD_SIZE", "1")) <= 1:
+        return
+    rank = int(os.environ["LOCAL_RANK"])
+    torch.cuda.set_device(rank)
+    if not torch.distributed.is_initialized():
+        torch.distributed.init_process_group(
+            backend="nccl", device_id=torch.device("cuda", rank),
+            timeout=timedelta(minutes=5))
+    print(f"DDP: rank local {rank}, GPU {rank}, grupo inicializado.", flush=True)
+
+
 def train(args):
     import torch
     from datasets import Dataset
     from transformers import Trainer, TrainingArguments, DataCollatorWithPadding, set_seed
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    initialize_training_devices()
     set_seed(args.seed)
     bundle = read_json(Path(args.data, "bundle.json"))
     tok = tokenizer(bundle)
@@ -81,6 +96,7 @@ def train(args):
     torch.cuda.reset_peak_memory_stats()
     start = time.perf_counter()
     result = trainer.train(resume_from_checkpoint=args.resume or None)
+    print(f"DDP: rank local {os.environ.get('LOCAL_RANK', '0')}, Trainer concluido.", flush=True)
     if trainer.is_world_process_zero():
         folder = Path(args.run, "final_adapter")
         trainer.save_model(str(folder))
@@ -92,6 +108,7 @@ def train(args):
             "bundle_sha256": file_hash(Path(args.data, "bundle.json")),
             "train_sha256": file_hash(Path(args.data, "train.jsonl")),
             "validation_sha256": file_hash(Path(args.data, "validation.jsonl"))})
+        print("Adaptador final e run_report.json salvos.", flush=True)
 
 
 def baseline(args):

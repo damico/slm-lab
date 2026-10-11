@@ -125,6 +125,8 @@ Se quiser medir o efeito do OCR depois, prepare outro conjunto com `--out data_t
 
 ## 6. Treinar nas duas RTX 3070
 
+Nos comandos `torchrun`, o separador `--` antes do nome do script encerra as opções do lançador. Assim, `--run` e os demais argumentos seguintes chegam ao script de treino sem serem interpretados como abreviações de opções do `torchrun`.
+
 Na primeira execução do treino ou da inferência local, o runtime baixa do Hugging Face os pesos e a configuração do Qwen3-1.7B que ainda não estiverem no cache. Esses arquivos são a base pré-treinada sobre a qual o laboratório ajusta os adaptadores e, no laboratório 04, a camada de classificação. Inferências posteriores reutilizam o cache e carregam o adaptador da pasta local indicada; se algum arquivo do tokenizer ou da base estiver ausente, ele também é obtido do Hugging Face.
 
 Você fará ajuste supervisionado, não pré-treinamento do zero. A base fica congelada em NF4 com dupla quantização, e os adaptadores LoRA são treinados. A perda é calculada somente sobre os tokens da resposta; prompt e padding recebem `-100`. O runtime usa SDPA, gradient checkpointing e BF16 quando o hardware/runtime informar suporte, ou FP16 caso contrário.
@@ -138,7 +140,7 @@ CUDA_VISIBLE_DEVICES=1 python lab_runtime.py train \
   --data data --run runs/smoke_1gpu --max-steps 10 --accum 1 \
   --eval-steps 5 --eval-limit 8 2>&1 | tee logs/smoke_1gpu.log
 
-CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 \
+CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- \
   lab_runtime.py train --data data --run runs/smoke_2gpu \
   --max-steps 20 --accum 8 --eval-steps 10 --eval-limit 16 \
   2>&1 | tee logs/smoke_2gpu.log
@@ -151,7 +153,7 @@ nvidia-smi --query-gpu=timestamp,index,memory.used,utilization.gpu,power.draw,te
   --format=csv -l 2 > logs/gpu_train.csv &
 LAB03_MONITOR_PID=$!
 CUDA_VISIBLE_DEVICES=0,1 /usr/bin/time -v \
-  torchrun --standalone --nproc_per_node=2 lab_runtime.py train \
+  torchrun --standalone --nproc-per-node=2 -- lab_runtime.py train \
   --data data --run runs/main --epochs 3 --accum 8 --rank 16 \
   --lr 0.0001 --eval-steps 20 --eval-limit 256 \
   2>&1 | tee logs/main_train.log

@@ -97,7 +97,7 @@ etapa_8() {
 CUDA_VISIBLE_DEVICES=1 python decision_lab.py train --data data \
   --run runs/smoke_1gpu --max-steps 10 --accum 1 --eval-steps 5 --eval-limit 16 \
   2>&1 | tee logs/smoke_1gpu.log
-CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 \
+CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- \
   decision_lab.py train --data data --run runs/smoke_2gpu \
   --max-steps 20 --accum 8 --eval-steps 10 --eval-limit 32 \
   2>&1 | tee logs/smoke_2gpu.log
@@ -109,7 +109,7 @@ nvidia-smi --query-gpu=timestamp,index,memory.used,utilization.gpu,power.draw,te
   --format=csv -l 2 > logs/gpu_train.csv &
 LAB04_MONITOR_PID=$!
 CUDA_VISIBLE_DEVICES=0,1 /usr/bin/time -v \
-  torchrun --standalone --nproc_per_node=2 decision_lab.py train \
+  torchrun --standalone --nproc-per-node=2 -- decision_lab.py train \
   --data data --run runs/main --epochs 2 --accum 8 --rank 16 --lr 0.0001 \
   --eval-steps 100 --eval-limit 512 2>&1 | tee logs/main_train.log
 kill "$LAB04_MONITOR_PID"

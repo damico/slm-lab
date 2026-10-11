@@ -154,6 +154,10 @@ Escolha o tamanho do treino pela validação, antes de abrir o teste. Se uma cla
 
 ## 7. Teste curto e treinamento
 
+O runtime inicializa o grupo NCCL vinculando cada processo à GPU indicada por `LOCAL_RANK`, com timeout de cinco minutos para operações coletivas. Isso torna explícita a escolha de GPU usada nas barreiras, conforme a [documentação do PyTorch 2.7](https://docs.pytorch.org/docs/2.7/distributed.html). A barra em 100% indica o fim dos passos, mas o treino só está concluído quando retorna ao terminal e grava `final_adapter` e `run_report.json`. Mensagens adicionais identificam a saída do Trainer e a gravação final. Se atualizar o runtime no repositório, substitua também a cópia local de `decision_lab.py`; `cp -n` preserva cópias antigas.
+
+Nos comandos `torchrun`, o separador `--` antes do nome do script encerra as opções do lançador. Assim, `--run` e os demais argumentos seguintes chegam ao script de treino sem serem interpretados como abreviações de opções do `torchrun`.
+
 Na primeira execução do treino ou da inferência local, o runtime baixa do Hugging Face os pesos e a configuração do Qwen3-1.7B que ainda não estiverem no cache. Esses arquivos são a base pré-treinada sobre a qual o laboratório ajusta os adaptadores e, no laboratório 04, a camada de classificação. Inferências posteriores reutilizam o cache e carregam o adaptador da pasta local indicada; se algum arquivo do tokenizer ou da base estiver ausente, ele também é obtido do Hugging Face.
 
 Configuração inicial: rank 16, alpha 32, dropout 0,05, learning rate `1e-4`, duas épocas, microbatch 1 e acumulação 8. Com duas GPUs, o batch efetivo é 16 decisões por atualização. O runtime usa NF4, dupla quantização, SDPA, gradient checkpointing e BF16 quando suportado, ou FP16.
@@ -164,7 +168,7 @@ Uma mensagem dizendo que `score.weight` foi inicializado é esperada na criaçã
 CUDA_VISIBLE_DEVICES=1 python decision_lab.py train --data data \
   --run runs/smoke_1gpu --max-steps 10 --accum 1 --eval-steps 5 --eval-limit 16 \
   2>&1 | tee logs/smoke_1gpu.log
-CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 \
+CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- \
   decision_lab.py train --data data --run runs/smoke_2gpu \
   --max-steps 20 --accum 8 --eval-steps 10 --eval-limit 32 \
   2>&1 | tee logs/smoke_2gpu.log
@@ -177,7 +181,7 @@ nvidia-smi --query-gpu=timestamp,index,memory.used,utilization.gpu,power.draw,te
   --format=csv -l 2 > logs/gpu_train.csv &
 LAB04_MONITOR_PID=$!
 CUDA_VISIBLE_DEVICES=0,1 /usr/bin/time -v \
-  torchrun --standalone --nproc_per_node=2 decision_lab.py train \
+  torchrun --standalone --nproc-per-node=2 -- decision_lab.py train \
   --data data --run runs/main --epochs 2 --accum 8 --rank 16 --lr 0.0001 \
   --eval-steps 100 --eval-limit 512 2>&1 | tee logs/main_train.log
 kill "$LAB04_MONITOR_PID"

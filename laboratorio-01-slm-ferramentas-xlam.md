@@ -127,6 +127,8 @@ Código: [score_tools.py](scripts/lab01-ferramentas/score_tools.py).
 
 ## 6. Verificar memória e treinar
 
+Nos comandos `torchrun`, o separador `--` antes do nome do script encerra as opções do lançador. Assim, `--run` e os demais argumentos seguintes chegam ao script de treino sem serem interpretados como abreviações de opções do `torchrun`.
+
 Na primeira execução do treino ou da inferência local, o runtime baixa do Hugging Face os pesos e a configuração do Qwen3-1.7B que ainda não estiverem no cache. Esses arquivos são a base pré-treinada sobre a qual o laboratório ajusta os adaptadores e, no laboratório 04, a camada de classificação. Inferências posteriores reutilizam o cache e carregam o adaptador da pasta local indicada; se algum arquivo do tokenizer ou da base estiver ausente, ele também é obtido do Hugging Face.
 
 A configuração inicial é: **contexto total 2.048 tokens, reserva de até 512 tokens para saída, LoRA rank 16, learning rate 0,0001, microbatch 1, acumulação 8 e duas épocas**. É um ponto de partida, não uma garantia de encaixe em 8 GB nem uma configuração ótima demonstrada. O contexto inclui o catálogo/esquema, a pergunta e a resposta.
@@ -144,7 +146,7 @@ CUDA_VISIBLE_DEVICES=1 python lab_runtime.py train \
 Depois, verifique o caminho de duas GPUs:
 
 ```bash
-CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 \
+CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- \
   lab_runtime.py train --data data --run runs/smoke_2gpu \
   --max-steps 20 --accum 8 --eval-limit 32 \
   2>&1 | tee logs/smoke_2gpu.log
@@ -157,7 +159,7 @@ nvidia-smi --query-gpu=timestamp,index,memory.used,utilization.gpu,power.draw,te
   --format=csv -l 2 > logs/gpu_train.csv &
 LAB_MONITOR_PID=$!
 CUDA_VISIBLE_DEVICES=0,1 /usr/bin/time -v \
-  torchrun --standalone --nproc_per_node=2 lab_runtime.py train \
+  torchrun --standalone --nproc-per-node=2 -- lab_runtime.py train \
   --data data --run runs/main_r16_lr1e4 \
   --epochs 2 --accum 8 --rank 16 --lr 0.0001 --eval-limit 256 \
   2>&1 | tee logs/main_train.log
@@ -175,7 +177,7 @@ Para retomar um treino interrompido, use uma pasta de checkpoint realmente exist
 ```bash
 python listar_checkpoints.py
 # Exemplo de forma, substituindo pelo caminho que o comando acima mostrou:
-# CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 lab_runtime.py train \
+# CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- lab_runtime.py train \
 #   --data data --run runs/main_r16_lr1e4 --epochs 2 --accum 8 \
 #   --resume runs/main_r16_lr1e4/checkpoint-N
 ```
@@ -315,7 +317,7 @@ O idioma dos datasets é inglês. Apresente os resultados quantitativos em ingl�
 | `CUDA out of memory` | Pare o treino, confira processos em `nvidia-smi`, mantenha microbatch 1 e refaça a preparação com `--max-seq 1536` ou `1024`. Isso reduz cobertura: use os novos dados em todas as condições. Acumulação de gradientes não reduz a memória de uma sequência individual. |
 | Ainda não cabe | Reduza `--rank` para 8; considere limitar LoRA a `q_proj/k_proj/v_proj/o_proj` como nova configuração documentada. Evite trocar silenciosamente o modelo durante a comparação. |
 | Travamento/erro NCCL somente com duas GPUs | Confira `nvidia-smi topo -m` e teste uma GPU. Para diagnóstico de P2P, tente apenas nessa execução `NCCL_P2P_DISABLE=1 CUDA_VISIBLE_DEVICES=0,1 torchrun ...`. Pode reduzir desempenho. Não altere IOMMU/BIOS como primeira medida. |
-| Apenas uma GPU usada | Use o comando `torchrun --nproc_per_node=2`; a inferência com `predict` é deliberadamente de uma GPU. |
+| Apenas uma GPU usada | Use o comando `torchrun --nproc-per-node=2 --`; a inferência com `predict` é deliberadamente de uma GPU. |
 | Perda `nan`/`inf` | Confira precisão escolhida, reduza learning rate e investigue o log; não continue treinando esperando correção espontânea. |
 | Erro de acesso ao xLAM | Entre no Hugging Face, aceite as condições do dataset e execute `hf auth login` no mesmo usuário/ambiente. |
 | Muitos casos fora do contexto | Inspecione `length_report.json`. Aumentar contexto eleva memória; um esquema/catálogo mais compacto deve usar regras disponíveis na inferência, nunca tabelas/funções reveladas pela resposta correta. |
