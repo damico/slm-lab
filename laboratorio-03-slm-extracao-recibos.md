@@ -46,6 +46,8 @@ Use Ubuntu, Bash, Python 3.11 ou 3.12 e, como ponto de partida, 32 GB de RAM e 2
 
 Crie uma pasta nova. Salve uma cópia deste Markdown nela com o nome `laboratorio.md`:
 
+A cópia do Markdown para `./laboratorio.md` deixa uma referência do roteiro na pasta do experimento. Ela é opcional para executar os scripts, que agora estão em arquivos `.py` separados.
+
 ```bash
 mkdir -p lab03-recibos
 cd lab03-recibos
@@ -55,6 +57,8 @@ python3 --version
 ```
 
 Prepare primeiro o ambiente compartilhado conforme [Preparação geral](preparacao-geral.md). Depois, ative-o abaixo. O runtime cu128 requer driver compatível; consulte a [matriz oficial do PyTorch](https://pytorch.org/get-started/previous-versions/) se a importação ou CUDA falhar. Não é necessário instalar um CUDA Toolkit separado para estes wheels.
+
+As cópias de `~/slm-labs/requirements.txt` e `~/slm-labs/requirements-resolved.txt` para a pasta atual registram, junto dos resultados, a receita de dependências e as versões efetivamente instaladas. Elas não criam outro venv nem instalam pacotes.
 
 ```bash
 source ~/slm-labs/.venv/bin/activate
@@ -77,6 +81,8 @@ python ~/git/slm-lab/verificar_ambiente.py
 
 Os scripts estão em [scripts/lab03-recibos](scripts/lab03-recibos). Copie-os para a pasta de trabalho com o comando abaixo. Ajuste o caminho do repositório se necessário. `cp -n` preserva arquivos existentes; compare cópias antigas antes de atualizá-las. O Markdown é apenas o roteiro e não precisa ser lido por um extrator.
 
+`cp -n` copia os scripts da pasta específica deste laboratório no repositório para a pasta atual. Isso permite executar os comandos `python arquivo.py` e resolver os imports locais, mantendo dados e resultados isolados dos outros laboratórios. A opção `-n` preserva arquivos de destino que já existem.
+
 ```bash
 cp -n ~/git/slm-lab/scripts/lab03-recibos/*.py ./
 ```
@@ -84,6 +90,8 @@ cp -n ~/git/slm-lab/scripts/lab03-recibos/*.py ./
 Os scripts usam apenas os pacotes instalados acima. O runtime é uma cópia independente, com avaliação mais frequente para este dataset pequeno; não copie por cima dos arquivos dos laboratórios anteriores.
 
 ## 5. Preparar os dados sem anotar exemplos
+
+O comando `prepare_receipts.py` baixa do Hugging Face as imagens e os campos anotados do dataset `jsdnrs/ICDAR2019-SROIE`. As imagens são a entrada do OCR; as anotações são os gabaritos usados para treinar e avaliar a extração de empresa, endereço, data e total. O tokenizer do Qwen3-1.7B é baixado para formatar os exemplos e conferir o orçamento de tokens.
 
 ```bash
 set -o pipefail
@@ -116,6 +124,8 @@ O limite inicial é 2.048 tokens no total, com reserva de 512 para a resposta. O
 Se quiser medir o efeito do OCR depois, prepare outro conjunto com `--out data_transcript --mode transcript`. Ele usa as transcrições fornecidas pelo dataset. Compare esse experimento separadamente e registre a diferença de entrada; não apresente seu resultado como a acurácia da aplicação com Tesseract. Não escolha o OCR olhando os acertos no teste.
 
 ## 6. Treinar nas duas RTX 3070
+
+Na primeira execução do treino ou da inferência local, o runtime baixa do Hugging Face os pesos e a configuração do Qwen3-1.7B que ainda não estiverem no cache. Esses arquivos são a base pré-treinada sobre a qual o laboratório ajusta os adaptadores e, no laboratório 04, a camada de classificação. Inferências posteriores reutilizam o cache e carregam o adaptador da pasta local indicada; se algum arquivo do tokenizer ou da base estiver ausente, ele também é obtido do Hugging Face.
 
 Você fará ajuste supervisionado, não pré-treinamento do zero. A base fica congelada em NF4 com dupla quantização, e os adaptadores LoRA são treinados. A perda é calculada somente sobre os tokens da resposta; prompt e padding recebem `-100`. O runtime usa SDPA, gradient checkpointing e BF16 quando o hardware/runtime informar suporte, ou FP16 caso contrário.
 
@@ -322,7 +332,7 @@ Fontes primárias consultadas em 10/10/2026:
 
 ## Apêndice, arquivos Python
 
-Os blocos abaixo são os mesmos que o extrator da seção 4 grava. Execute-os manualmente somente se não usou o extrator. Todos os comandos do roteiro assumem a pasta `lab03-recibos` como diretório atual.
+Os links abaixo apontam para os arquivos Python copiados na seção 4. Todos os comandos do roteiro assumem a pasta `lab03-recibos` como diretório atual.
 
 ### `lab_runtime.py`
 
@@ -349,3 +359,16 @@ Código: [score_receipts.py](scripts/lab03-recibos/score_receipts.py).
 Código: [extract_receipts.py](scripts/lab03-recibos/extract_receipts.py).
 
 Scripts auxiliares: [inspecionar_dados.py](scripts/lab03-recibos/inspecionar_dados.py).
+
+## Executar os comandos por script Bash
+
+O arquivo [laboratorio-03-slm-extracao-recibos.sh](laboratorio-03-slm-extracao-recibos.sh) reúne os 15 blocos Bash deste roteiro em etapas numeradas. Liste as etapas e execute um intervalo:
+
+```bash
+bash ~/git/slm-lab/laboratorio-03-slm-extracao-recibos.sh --list
+bash ~/git/slm-lab/laboratorio-03-slm-extracao-recibos.sh --steps 1-5
+```
+
+Ajuste o caminho do repositório se necessário. Execute as etapas seguintes em ordem conforme o roteiro; selecione as alternativas adequadas. Configuração de API e chamadas devem ficar na mesma execução. O servidor do laboratório 04 ocupa o terminal, e a chamada HTTP deve ser feita em outro terminal. Downloads manuais e caminhos de exemplo continuam exigindo os ajustes descritos no texto.
+
+Cada execução grava stdout e stderr em `logs/laboratorio-03-slm-extracao-recibos-DATA-HORA-PID.log` na pasta do laboratório. Os logs específicos dos comandos também são mantidos. Uma falha interrompe o script e registra o código de saída. O script usa a pasta do laboratório indicada neste roteiro; `LAB_WORK_DIR` permite escolher outra.

@@ -84,6 +84,8 @@ Prepare primeiro o ambiente compartilhado conforme [Preparação geral](preparac
 
 Crie uma pasta independente dos outros labs e copie este Markdown para ela com o nome `laboratorio.md`. O exemplo considera o repositório em `~/git/slm-lab`; ajuste o caminho de origem se você o salvou em outro lugar:
 
+A cópia do Markdown para `./laboratorio.md` deixa uma referência do roteiro na pasta do experimento. Ela é opcional para executar os scripts, que agora estão em arquivos `.py` separados.
+
 ```bash
 mkdir -p lab04-decisoes
 cd lab04-decisoes
@@ -92,6 +94,8 @@ nvidia-smi --query-gpu=index,name,memory.total,memory.free,driver_version --form
 nvidia-smi topo -m
 python3 --version
 ```
+
+As cópias de `~/slm-labs/requirements.txt` e `~/slm-labs/requirements-resolved.txt` para a pasta atual registram, junto dos resultados, a receita de dependências e as versões efetivamente instaladas. Elas não criam outro venv nem instalam pacotes.
 
 ```bash
 source ~/slm-labs/.venv/bin/activate
@@ -111,11 +115,15 @@ python ~/git/slm-lab/verificar_ambiente.py
 
 Os scripts estão em [scripts/lab04-decisoes](scripts/lab04-decisoes). Copie-os para a pasta de trabalho com o comando abaixo. Ajuste o caminho do repositório se necessário. `cp -n` preserva arquivos existentes; compare cópias antigas antes de atualizá-las. O Markdown é apenas o roteiro e não precisa ser lido por um extrator.
 
+`cp -n` copia os scripts da pasta específica deste laboratório no repositório para a pasta atual. Isso permite executar os comandos `python arquivo.py` e resolver os imports locais, mantendo dados e resultados isolados dos outros laboratórios. A opção `-n` preserva arquivos de destino que já existem.
+
 ```bash
 cp -n ~/git/slm-lab/scripts/lab04-decisoes/*.py ./
 ```
 
 ## 6. Baixar e preparar os dados
+
+O comando `prepare_abcd.py` baixa quatro arquivos da revisão fixada do repositório ABCD no GitHub: `abcd_v1.1.json.gz` contém as conversas e ações que viram exemplos e gabaritos; `ontology.json` define o catálogo de ações; `guidelines.json` fornece as regras recuperadas para compor o contexto; `LICENSE` preserva os termos de uso do material. Os arquivos ficam em `raw/abcd` por padrão. O tokenizer do Qwen3-1.7B vem do Hugging Face e permite montar a janela de histórico dentro do limite de tokens.
 
 ```bash
 set -o pipefail
@@ -135,6 +143,8 @@ python inspecionar_dados.py
 
 Para o treino completo, prepare outra pasta e use-a em **todos** os comandos subsequentes com `--data data_full`, além de ajustar os caminhos dos JSONLs:
 
+A preparação completa abaixo usa as mesmas fontes externas e o mesmo tokenizer da preparação anterior, reaproveitando arquivos disponíveis no cache. Sua finalidade é gerar exemplos a partir de todas as conversas de treino, em uma pasta de saída diferente.
+
 ```bash
 python prepare_abcd.py --out data_full --train-conversations 0 \
   --max-seq 2048 --policy-tokens 400
@@ -143,6 +153,8 @@ python prepare_abcd.py --out data_full --train-conversations 0 \
 Escolha o tamanho do treino pela validação, antes de abrir o teste. Se uma classe não estiver presente no subconjunto de treino, o script pede para aumentar o número de conversas. Os registros inelegíveis permanecem no teste; são contados como falhas na acurácia global e como revisão no uso local.
 
 ## 7. Teste curto e treinamento
+
+Na primeira execução do treino ou da inferência local, o runtime baixa do Hugging Face os pesos e a configuração do Qwen3-1.7B que ainda não estiverem no cache. Esses arquivos são a base pré-treinada sobre a qual o laboratório ajusta os adaptadores e, no laboratório 04, a camada de classificação. Inferências posteriores reutilizam o cache e carregam o adaptador da pasta local indicada; se algum arquivo do tokenizer ou da base estiver ausente, ele também é obtido do Hugging Face.
 
 Configuração inicial: rank 16, alpha 32, dropout 0,05, learning rate `1e-4`, duas épocas, microbatch 1 e acumulação 8. Com duas GPUs, o batch efetivo é 16 decisões por atualização. O runtime usa NF4, dupla quantização, SDPA, gradient checkpointing e BF16 quando suportado, ou FP16.
 
@@ -413,3 +425,16 @@ Código: [evaluate_decisions.py](scripts/lab04-decisoes/evaluate_decisions.py).
 Código: [serve_decisions.py](scripts/lab04-decisoes/serve_decisions.py).
 
 Scripts auxiliares: [inspecionar_dados.py](scripts/lab04-decisoes/inspecionar_dados.py).
+
+## Executar os comandos por script Bash
+
+O arquivo [laboratorio-04-slm-decisoes-abcd.sh](laboratorio-04-slm-decisoes-abcd.sh) reúne os 20 blocos Bash deste roteiro em etapas numeradas. Liste as etapas e execute um intervalo:
+
+```bash
+bash ~/git/slm-lab/laboratorio-04-slm-decisoes-abcd.sh --list
+bash ~/git/slm-lab/laboratorio-04-slm-decisoes-abcd.sh --steps 1-5
+```
+
+Ajuste o caminho do repositório se necessário. Execute as etapas seguintes em ordem conforme o roteiro; selecione as alternativas adequadas. Configuração de API e chamadas devem ficar na mesma execução. O servidor do laboratório 04 ocupa o terminal, e a chamada HTTP deve ser feita em outro terminal. Downloads manuais e caminhos de exemplo continuam exigindo os ajustes descritos no texto.
+
+Cada execução grava stdout e stderr em `logs/laboratorio-04-slm-decisoes-abcd-DATA-HORA-PID.log` na pasta do laboratório. Os logs específicos dos comandos também são mantidos. Uma falha interrompe o script e registra o código de saída. O script usa a pasta do laboratório indicada neste roteiro; `LAB_WORK_DIR` permite escolher outra.

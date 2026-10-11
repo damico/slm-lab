@@ -43,6 +43,8 @@ Se `nvidia-smi` funciona, não há razão para reinstalar o driver para começar
 
 Prepare primeiro o ambiente compartilhado conforme [Preparação geral](preparacao-geral.md). Dentro da pasta do laboratório criada na seção 1, ative esse ambiente:
 
+As cópias de `~/slm-labs/requirements.txt` e `~/slm-labs/requirements-resolved.txt` para a pasta atual registram, junto dos resultados, a receita de dependências e as versões efetivamente instaladas. Elas não criam outro venv nem instalam pacotes.
+
 ```bash
 source ~/slm-labs/.venv/bin/activate
 cp ~/slm-labs/requirements.txt ./requirements.txt
@@ -63,6 +65,8 @@ O script escolhe BF16 quando o runtime informa suporte; caso contrário, usa FP1
 
 Os scripts estão em [scripts/lab01-ferramentas](scripts/lab01-ferramentas) no repositório. Dentro da pasta de trabalho do laboratório, copie-os antes de seguir:
 
+`cp -n` copia os scripts da pasta específica deste laboratório no repositório para a pasta atual. Isso permite executar os comandos `python arquivo.py` e resolver os imports locais, mantendo dados e resultados isolados dos outros laboratórios. A opção `-n` preserva arquivos de destino que já existem.
+
 ```bash
 cp -n ~/git/slm-lab/scripts/lab01-ferramentas/*.py ./
 ```
@@ -79,6 +83,8 @@ Na primeira preparação, os scripts registram os commits do modelo e datasets e
 
 1. Abra a página do xLAM, entre na sua conta e aceite as condições de acesso.
 2. No terminal do ambiente virtual, autentique-se. Não coloque o token diretamente nos comandos salvos.
+
+O comando `prepare_tools.py` baixa do Hugging Face os exemplos do xLAM: solicitações, catálogos de ferramentas e chamadas corretas. Esses dados fornecem os pares de entrada e saída para especializar o SLM e comparar suas previsões com o gabarito. A autenticação permite acessar os arquivos conforme as condições do dataset. O script também baixa o tokenizer do Qwen3-1.7B para formatar os prompts e medir seus comprimentos antes de gerar os JSONLs.
 
 ```bash
 hf auth login
@@ -120,6 +126,8 @@ Código: [prepare_tools.py](scripts/lab01-ferramentas/prepare_tools.py).
 Código: [score_tools.py](scripts/lab01-ferramentas/score_tools.py).
 
 ## 6. Verificar memória e treinar
+
+Na primeira execução do treino ou da inferência local, o runtime baixa do Hugging Face os pesos e a configuração do Qwen3-1.7B que ainda não estiverem no cache. Esses arquivos são a base pré-treinada sobre a qual o laboratório ajusta os adaptadores e, no laboratório 04, a camada de classificação. Inferências posteriores reutilizam o cache e carregam o adaptador da pasta local indicada; se algum arquivo do tokenizer ou da base estiver ausente, ele também é obtido do Hugging Face.
 
 A configuração inicial é: **contexto total 2.048 tokens, reserva de até 512 tokens para saída, LoRA rank 16, learning rate 0,0001, microbatch 1, acumulação 8 e duas épocas**. É um ponto de partida, não uma garantia de encaixe em 8 GB nem uma configuração ótima demonstrada. O contexto inclui o catálogo/esquema, a pergunta e a resposta.
 
@@ -359,3 +367,16 @@ Fontes consultadas em 10/10/2026; preserve as revisões registradas em seu labor
 - [OpenRouter, formato da API usado como exemplo de endpoint compatível](https://openrouter.ai/docs/api_reference/overview).
 
 Scripts auxiliares: [inspecionar_dados.py](scripts/lab01-ferramentas/inspecionar_dados.py), [listar_checkpoints.py](scripts/lab01-ferramentas/listar_checkpoints.py), [preparar_demo.py](scripts/lab01-ferramentas/preparar_demo.py).
+
+## Executar os comandos por script Bash
+
+O arquivo [laboratorio-01-slm-ferramentas-xlam.sh](laboratorio-01-slm-ferramentas-xlam.sh) reúne os 18 blocos Bash deste roteiro em etapas numeradas. Liste as etapas e execute um intervalo:
+
+```bash
+bash ~/git/slm-lab/laboratorio-01-slm-ferramentas-xlam.sh --list
+bash ~/git/slm-lab/laboratorio-01-slm-ferramentas-xlam.sh --steps 1-5
+```
+
+Ajuste o caminho do repositório se necessário. Execute as etapas seguintes em ordem conforme o roteiro; selecione as alternativas adequadas. Configuração de API e chamadas devem ficar na mesma execução. O servidor do laboratório 04 ocupa o terminal, e a chamada HTTP deve ser feita em outro terminal. Downloads manuais e caminhos de exemplo continuam exigindo os ajustes descritos no texto.
+
+Cada execução grava stdout e stderr em `logs/laboratorio-01-slm-ferramentas-xlam-DATA-HORA-PID.log` na pasta do laboratório. Os logs específicos dos comandos também são mantidos. Uma falha interrompe o script e registra o código de saída. O script usa a pasta do laboratório indicada neste roteiro; `LAB_WORK_DIR` permite escolher outra.

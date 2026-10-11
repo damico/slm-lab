@@ -41,6 +41,8 @@ Se `nvidia-smi` funciona, não há razão para reinstalar o driver para começar
 
 Prepare primeiro o ambiente compartilhado conforme [Preparação geral](preparacao-geral.md). Dentro da pasta do laboratório criada na seção 1, ative esse ambiente:
 
+As cópias de `~/slm-labs/requirements.txt` e `~/slm-labs/requirements-resolved.txt` para a pasta atual registram, junto dos resultados, a receita de dependências e as versões efetivamente instaladas. Elas não criam outro venv nem instalam pacotes.
+
 ```bash
 source ~/slm-labs/.venv/bin/activate
 cp ~/slm-labs/requirements.txt ./requirements.txt
@@ -61,6 +63,8 @@ O script escolhe BF16 quando o runtime informa suporte; caso contrário, usa FP1
 
 Os scripts estão em [scripts/lab02-sql](scripts/lab02-sql) no repositório. Dentro da pasta de trabalho do laboratório, copie-os antes de seguir:
 
+`cp -n` copia os scripts da pasta específica deste laboratório no repositório para a pasta atual. Isso permite executar os comandos `python arquivo.py` e resolver os imports locais, mantendo dados e resultados isolados dos outros laboratórios. A opção `-n` preserva arquivos de destino que já existem.
+
 ```bash
 cp -n ~/git/slm-lab/scripts/lab02-sql/*.py ./
 ```
@@ -79,17 +83,22 @@ Na primeira preparação, os scripts registram os commits do modelo e datasets e
 
 Planeje espaço: o BIRD trabalha com bancos grandes, na ordem de dezenas de GB. Como você manterá os ZIPs e as cópias extraídas, reserve aproximadamente **100 GB livres adicionais como margem inicial**, conferindo o tamanho efetivo dos pacotes antes de baixar. Isso é planejamento de disco, não uma medida feita neste ambiente.
 
-O link oficial de treino, referenciado no card do dataset filtrado, é:
+O download de `train.zip` fornece os bancos SQLite de treino do BIRD. Eles são necessários para ler os esquemas usados nos prompts e executar SQLs durante a avaliação; perguntas e respostas SQL, sozinhas, não contêm os bancos. O arquivo é salvo em `raw/bird_train.zip` para extração posterior. O link oficial de treino, referenciado no card do dataset filtrado, é:
 
 ```bash
+mkdir -p raw
 curl -fL --retry 3 -C - \
   'https://bird-bench.oss-cn-beijing.aliyuncs.com/train.zip' \
   -o raw/bird_train.zip
 ```
 
+O download separado do pacote Mini-Dev fornece os bancos SQLite dos casos de teste, necessários para executar as consultas previstas e as consultas de referência. Copiar o ZIP baixado pelo navegador para `raw/bird_mini.zip` dá ao extrator o nome e o local esperados pelos comandos abaixo.
+
 Para o Mini-Dev, use **Download BIRD Mini-Dev Complete Package** na [página oficial](https://huggingface.co/datasets/birdsql/bird_mini_dev). O link apontado na consulta desta versão é [minidev_0703.zip no Google Drive](https://drive.google.com/file/d/13VLWIwpw5E3d5DUkMvzw7hvHE67a4XkG/view). Faça o download pelo navegador e copie-o para `raw/bird_mini.zip` dentro desta pasta. Não salve a página HTML do Drive como se fosse um ZIP. Se o link tiver mudado, siga o link atual do card e registre a mudança.
 
 O script de extração abaixo lida com ZIPs internos; os caminhos finais são encontrados recursivamente. Copie os scripts conforme a seção 3 e então execute:
+
+Após extrair os bancos, `prepare_sql.py` baixa do Hugging Face as perguntas, evidências e SQLs de referência de `birdsql/bird23-train-filtered` e do split `mini_dev_sqlite` de `birdsql/bird_mini_dev`. Esses registros conectam cada pergunta ao banco correspondente e fornecem os gabaritos de treino e avaliação. O tokenizer do Qwen3-1.7B também é baixado para formatar os prompts e conferir o limite de tokens.
 
 ```bash
 python extract_archives.py raw/bird_train.zip raw/bird_train
@@ -146,6 +155,8 @@ Código: [prepare_sql.py](scripts/lab02-sql/prepare_sql.py).
 Código: [score_sql.py](scripts/lab02-sql/score_sql.py).
 
 ## 6. Verificar memória e treinar
+
+Na primeira execução do treino ou da inferência local, o runtime baixa do Hugging Face os pesos e a configuração do Qwen3-1.7B que ainda não estiverem no cache. Esses arquivos são a base pré-treinada sobre a qual o laboratório ajusta os adaptadores e, no laboratório 04, a camada de classificação. Inferências posteriores reutilizam o cache e carregam o adaptador da pasta local indicada; se algum arquivo do tokenizer ou da base estiver ausente, ele também é obtido do Hugging Face.
 
 A configuração inicial é: **contexto total 2.048 tokens, reserva de até 512 tokens para saída, LoRA rank 16, learning rate 0,0001, microbatch 1, acumulação 8 e duas épocas**. É um ponto de partida, não uma garantia de encaixe em 8 GB nem uma configuração ótima demonstrada. O contexto inclui o catálogo/esquema, a pergunta e a resposta.
 
@@ -394,3 +405,16 @@ Fontes consultadas em 10/10/2026; preserve revisões e hashes dos pacotes utiliz
 - [OpenRouter, formato da API usado como exemplo de endpoint compatível](https://openrouter.ai/docs/api_reference/overview).
 
 Scripts auxiliares: [inspecionar_dados.py](scripts/lab02-sql/inspecionar_dados.py), [listar_checkpoints.py](scripts/lab02-sql/listar_checkpoints.py), [preparar_demo.py](scripts/lab02-sql/preparar_demo.py).
+
+## Executar os comandos por script Bash
+
+O arquivo [laboratorio-02-slm-sql-bird.sh](laboratorio-02-slm-sql-bird.sh) reúne os 19 blocos Bash deste roteiro em etapas numeradas. Liste as etapas e execute um intervalo:
+
+```bash
+bash ~/git/slm-lab/laboratorio-02-slm-sql-bird.sh --list
+bash ~/git/slm-lab/laboratorio-02-slm-sql-bird.sh --steps 1-5
+```
+
+Ajuste o caminho do repositório se necessário. Execute as etapas seguintes em ordem conforme o roteiro; selecione as alternativas adequadas. Configuração de API e chamadas devem ficar na mesma execução. O servidor do laboratório 04 ocupa o terminal, e a chamada HTTP deve ser feita em outro terminal. Downloads manuais e caminhos de exemplo continuam exigindo os ajustes descritos no texto.
+
+Cada execução grava stdout e stderr em `logs/laboratorio-02-slm-sql-bird-DATA-HORA-PID.log` na pasta do laboratório. Os logs específicos dos comandos também são mantidos. Uma falha interrompe o script e registra o código de saída. O script usa a pasta do laboratório indicada neste roteiro; `LAB_WORK_DIR` permite escolher outra.

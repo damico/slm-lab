@@ -19,7 +19,7 @@ Esta receita mantém o PyTorch 2.7.1 com runtime cu128 dos roteiros. A compatibi
 
 ## 2. Instalar ferramentas do sistema
 
-Incluímos Tesseract e Poppler para o laboratório de recibos.
+Incluímos Tesseract e Poppler para o laboratório de recibos. `apt-get update` baixa os índices de pacotes do Ubuntu para localizar as versões disponíveis; `apt-get install` baixa as ferramentas do sistema usadas pelos roteiros, incluindo OCR, leitura de PDFs e download de arquivos.
 
 ```bash
 sudo apt-get update
@@ -28,7 +28,11 @@ sudo apt-get install -y python3-venv python3-pip git curl unzip time tesseract-o
 
 ## 3. Criar o ambiente compartilhado
 
+Os comandos `pip install` baixam as bibliotecas necessárias para carregar, quantizar e treinar os modelos, preparar datasets, processar imagens e calcular métricas. O PyTorch com CUDA 12.8 vem do índice oficial indicado no `requirements.txt`; as demais dependências também são resolvidas pelo pip. Essa instalação fornece software ao ambiente compartilhado; datasets e pesos são obtidos nas etapas dos laboratórios.
+
 Se você já estiver em um ambiente de laboratório, desative-o antes. Os ambientes antigos podem permanecer nas suas pastas; os comandos seguintes passam a usar o novo ambiente compartilhado.
+
+`cp ~/git/slm-lab/requirements.txt ./requirements.txt` leva a lista única de dependências do repositório para `~/slm-labs`, onde ela será usada na instalação do ambiente compartilhado.
 
 ```bash
 if [ -n "${VIRTUAL_ENV:-}" ]; then deactivate; fi
@@ -77,6 +81,12 @@ Depois, entre na pasta do laboratório e siga seu roteiro:
 | 04 — Decisões | [Decisões com ABCD](laboratorio-04-slm-decisoes-abcd.md) |
 
 Para continuar o laboratório 04 que você já iniciou:
+
+A cópia do Markdown para `./laboratorio.md` deixa uma referência do roteiro na pasta do experimento. Ela é opcional para executar os scripts, que agora estão em arquivos `.py` separados.
+
+As cópias de `~/slm-labs/requirements.txt` e `~/slm-labs/requirements-resolved.txt` para a pasta atual registram, junto dos resultados, a receita de dependências e as versões efetivamente instaladas. Elas não criam outro venv nem instalam pacotes.
+
+`cp -n` copia os scripts da pasta específica deste laboratório no repositório para a pasta atual. Isso permite executar os comandos `python arquivo.py` e resolver os imports locais, mantendo dados e resultados isolados dos outros laboratórios. A opção `-n` preserva arquivos de destino que já existem.
 
 ```bash
 cd ~/lab04-decisoes
