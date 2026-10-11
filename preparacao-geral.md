@@ -37,54 +37,20 @@ cd ~/slm-labs
 python3 -m venv .venv
 source ~/slm-labs/.venv/bin/activate
 python -m pip install --upgrade pip
-python -m pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128
-cat > requirements.txt <<'REQ'
-transformers==4.55.4
-peft==0.17.1
-accelerate==1.10.1
-bitsandbytes==0.47.0
-datasets==4.0.0
-huggingface-hub==0.34.4
-Pillow==11.3.0
-numpy==2.2.6
-scipy==1.15.3
-scikit-learn==1.7.1
-joblib==1.5.1
-REQ
+cp ~/git/slm-lab/requirements.txt ./requirements.txt
 python -m pip install -r requirements.txt
 python -m pip check
 python -m pip freeze > requirements-resolved.txt
 ```
 
-As versões acima são a união das dependências dos quatro roteiros, sem alterar seus pins. `requirements-resolved.txt` registra também as dependências transitivas instaladas. Execute os testes curtos de cada laboratório antes dos treinos completos.
+O arquivo [requirements.txt](requirements.txt) reúne as dependências dos quatro roteiros, incluindo o wheel CUDA 12.8 do PyTorch. O exemplo considera o repositório em `~/git/slm-lab`; ajuste a origem do comando `cp` se necessário. `requirements-resolved.txt` registra também as dependências transitivas instaladas. Execute os testes curtos de cada laboratório antes dos treinos completos.
 
 ## 4. Verificar imports e as duas GPUs
 
-```bash
-python - <<'PY'
-import sys
-from pathlib import Path
-import torch
-import transformers, peft, accelerate, bitsandbytes, datasets
-import huggingface_hub, numpy, scipy, sklearn, joblib
-from PIL import Image
+Execute o script [verificar_ambiente.py](verificar_ambiente.py). Ajuste o caminho do repositório se necessário.
 
-expected = Path.home() / 'slm-labs' / '.venv'
-assert Path(sys.prefix).resolve() == expected.resolve(), 'Ative o venv compartilhado'
-assert sys.version_info[:2] in {(3, 11), (3, 12)}, 'Use Python 3.11 ou 3.12'
-print('Python:', sys.executable)
-print('Torch:', torch.__version__, 'CUDA:', torch.version.cuda)
-assert torch.cuda.is_available(), 'CUDA indisponivel'
-assert torch.cuda.device_count() >= 2, 'As duas GPUs precisam estar visiveis'
-for i in range(torch.cuda.device_count()):
-    torch.cuda.set_device(i)
-    p = torch.cuda.get_device_properties(i)
-    x = torch.ones(8, device=f'cuda:{i}')
-    assert (x + x).sum().item() == 16
-    print(i, p.name, round(p.total_memory / 2**30, 2), 'GiB',
-          'BF16:', torch.cuda.is_bf16_supported())
-print('Imports e operacoes CUDA conferidos.')
-PY
+```bash
+python ~/git/slm-lab/verificar_ambiente.py
 tesseract --version
 pdftotext -v
 ```
@@ -118,11 +84,12 @@ source ~/slm-labs/.venv/bin/activate
 cp ~/git/slm-lab/laboratorio-04-slm-decisoes-abcd.md ./laboratorio.md
 cp ~/slm-labs/requirements.txt ./requirements.txt
 cp ~/slm-labs/requirements-resolved.txt ./requirements-resolved.txt
+cp -n ~/git/slm-lab/scripts/lab04-decisoes/*.py ./
 mkdir -p raw runs results logs
 export TOKENIZERS_PARALLELISM=false
 ```
 
-O exemplo considera o repositório em `~/git/slm-lab`; ajuste esse caminho se necessário. Se os scripts já foram extraídos, continue na próxima etapa do roteiro. O extrator exige que eles ainda não existam para evitar sobrescrita.
+O exemplo considera o repositório em `~/git/slm-lab`; ajuste esse caminho se necessário. Após copiar os scripts, continue na etapa de preparação dos dados do roteiro. A cópia dos scripts usa `cp -n` para preservar arquivos existentes. Para atualizar um script já copiado, compare-o com a versão do repositório antes de substituí-lo.
 
 Os caches de modelos e datasets do Hugging Face usam seus caminhos padrão no usuário e podem ser reaproveitados entre laboratórios. Os diretórios locais `raw`, `data` e `runs` continuam específicos de cada experimento.
 

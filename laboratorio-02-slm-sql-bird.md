@@ -19,7 +19,7 @@ mkdir -p "$HOME/slm-labs/02-sql"
 cd "$HOME/slm-labs/02-sql"
 ```
 
-Este arquivo inclui todos os scripts de que precisa e pode ser utilizado sem executar o laboratório de ferramentas.
+Os scripts deste roteiro estão no repositório e podem ser utilizados sem executar o laboratório de ferramentas.
 
 ## 2. Ambiente: Ubuntu e duas RTX 3070 de 8 GB
 
@@ -52,25 +52,20 @@ export TOKENIZERS_PARALLELISM=false
 As versões foram fixadas para tornar a receita explícita, não por serem as versões mais recentes. O arquivo `requirements-resolved.txt` registra também as dependências transitivas realmente instaladas. A receita precisa passar pelo teste curto no seu equipamento antes de um treino longo.
 
 ```bash
-python - <<'PY'
-import torch
-import transformers, peft, accelerate, bitsandbytes, datasets
-print('Torch:', torch.__version__, 'CUDA do PyTorch:', torch.version.cuda)
-assert torch.cuda.is_available(), 'CUDA indisponivel'
-assert torch.cuda.device_count() >= 2, 'As duas GPUs precisam estar visiveis'
-for i in range(torch.cuda.device_count()):
-    torch.cuda.set_device(i)
-    p = torch.cuda.get_device_properties(i)
-    print(i, p.name, round(p.total_memory / 2**30, 2), 'GiB',
-          'BF16:', torch.cuda.is_bf16_supported())
-PY
+python ~/git/slm-lab/verificar_ambiente.py
 ```
 
 O script escolhe BF16 quando o runtime informa suporte; caso contrário, usa FP16. Não usa FlashAttention como dependência adicional. `attn_implementation="sdpa"` deixa o PyTorch selecionar um caminho de atenção compatível.
 
 ## 3. Como executar os scripts deste documento
 
-Copie **cada bloco que começa com `cat > ... <<'PY'` integralmente** para o terminal Bash, incluindo o `PY` final. Isso criará os arquivos Python na pasta atual. Crie todos os scripts antes de seguir os comandos das seções seguintes. Os arquivos estão embutidos no Markdown; não é necessário baixar código de um repositório deste tutorial.
+Os scripts estão em [scripts/lab02-sql](scripts/lab02-sql) no repositório. Dentro da pasta de trabalho do laboratório, copie-os antes de seguir:
+
+```bash
+cp -n ~/git/slm-lab/scripts/lab02-sql/*.py ./
+```
+
+O exemplo considera o repositório em `~/git/slm-lab`; ajuste o caminho se necessário. `cp -n` preserva scripts existentes. Para atualizar uma cópia antiga, compare-a com a versão do repositório antes de substituí-la.
 
 O `lab_runtime.py` contém carregamento, treinamento e inferência. O `metrics.py` calcula métricas, intervalos de Wilson e diferenças pareadas. Os demais scripts são específicos do laboratório.
 
@@ -94,7 +89,7 @@ curl -fL --retry 3 -C - \
 
 Para o Mini-Dev, use **Download BIRD Mini-Dev Complete Package** na [página oficial](https://huggingface.co/datasets/birdsql/bird_mini_dev). O link apontado na consulta desta versão é [minidev_0703.zip no Google Drive](https://drive.google.com/file/d/13VLWIwpw5E3d5DUkMvzw7hvHE67a4XkG/view). Faça o download pelo navegador e copie-o para `raw/bird_mini.zip` dentro desta pasta. Não salve a página HTML do Drive como se fosse um ZIP. Se o link tiver mudado, siga o link atual do card e registre a mudança.
 
-O script de extração abaixo lida com ZIPs internos; os caminhos finais são encontrados recursivamente. Crie todos os scripts da seção 5 e então execute:
+O script de extração abaixo lida com ZIPs internos; os caminhos finais são encontrados recursivamente. Copie os scripts conforme a seção 3 e então execute:
 
 ```bash
 python extract_archives.py raw/bird_train.zip raw/bird_train
@@ -123,683 +118,32 @@ O campo `evidence` é uma informação adicional fornecida pelo benchmark. Todos
 O esquema compacto evita parte do custo de contexto, mas ainda haverá bancos grandes que não cabem em 2.048 tokens. Esses casos são contabilizados, não truncados. Descrições completas de colunas e amostras de valores não são incluídas nesta primeira receita. Não compare seus números diretamente com sistemas que usam recuperação de valores, amostras, múltiplas tentativas ou correção via execução.
 
 ```bash
-python - <<'PY'
-from lab_runtime import read_jsonl
-r = read_jsonl('data/train.jsonl')[0]
-print(r['messages'][1]['content'])
-print('\nSQL de treino:', r['answer'])
-print('\nBanco:', r['db_path'])
-PY
+python inspecionar_dados.py
 ```
 
 ## 5. Arquivos Python necessários
 
-Crie os cinco arquivos abaixo. `lab_runtime.py` e `metrics.py` são independentes das cópias do laboratório 1; execute todos os comandos a partir da pasta `02-sql`.
+Os cinco arquivos principais estão listados abaixo. `lab_runtime.py` e `metrics.py` são independentes das cópias do laboratório 1; execute todos os comandos a partir da pasta `02-sql`.
 
 ### lab_runtime.py
 
-```bash
-cat > lab_runtime.py <<'PY'
-"""Runtime comum aos dois laboratorios. Python 3.11/3.12."""
-import argparse
-import hashlib
-import json
-import os
-import random
-import time
-from pathlib import Path
-
-MODEL = "Qwen/Qwen3-1.7B"
-
-
-def read_jsonl(path):
-    with open(path, encoding="utf-8") as f:
-        return [json.loads(line) for line in f if line.strip()]
-
-
-def write_jsonl(path, rows):
-    p = Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open("w", encoding="utf-8") as f:
-        for row in rows:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
-
-
-def digest(value):
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-def file_hash(path):
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def lock_repo(repo, kind="model"):
-    # Preparacao em um processo; treinos apenas leem revisions.json.
-    from huggingface_hub import HfApi
-    path = Path("revisions.json")
-    lock = json.loads(path.read_text()) if path.exists() else {}
-    key = kind + ":" + repo
-    if key not in lock:
-        api = HfApi()
-        info = api.model_info(repo) if kind == "model" else api.dataset_info(repo)
-        lock[key] = info.sha
-        path.write_text(json.dumps(lock, indent=2), encoding="utf-8")
-    return lock[key]
-
-
-def tokenizer():
-    from transformers import AutoTokenizer
-    lock = json.loads(Path("revisions.json").read_text())
-    tok = AutoTokenizer.from_pretrained(MODEL, revision=lock["model:" + MODEL])
-    if tok.pad_token_id is None:
-        tok.pad_token = tok.eos_token
-    return tok
-
-
-def prompt_ids(tok, messages):
-    return tok.apply_chat_template(messages, tokenize=True,
-                                   add_generation_prompt=True, enable_thinking=False)
-
-
-def finalize_splits(splits, out, max_seq=2048, max_new=512):
-    # Teste: elegibilidade depende SO do prompt, nunca da resposta correta.
-    tok = tokenizer()
-    stats = {"max_seq": max_seq, "max_new": max_new, "splits": {}}
-    Path(out).mkdir(parents=True, exist_ok=True)
-    for name, rows in splits.items():
-        accepted, rejected = [], []
-        for r in rows:
-            n_prompt = len(prompt_ids(tok, r["messages"]))
-            r["prompt_tokens"] = n_prompt
-            r["eligible"] = n_prompt + max_new <= max_seq
-            if name in ("train", "validation"):
-                n_answer = len(tok.encode(r["answer"], add_special_tokens=False)) + 1
-                if not r["eligible"] or n_prompt + n_answer > max_seq:
-                    rejected.append({"id": r["id"], "reason": "length", "prompt": n_prompt,
-                                     "answer": n_answer})
-                    continue
-            accepted.append(r)
-        write_jsonl(Path(out) / (name + ".jsonl"), accepted)
-        write_jsonl(Path(out) / (name + "_excluded.jsonl"), rejected)
-        stats["splits"][name] = {"written": len(accepted), "excluded": len(rejected),
-                                 "eligible": sum(r["eligible"] for r in accepted)}
-    for name in ("train", "validation"):
-        if not stats["splits"][name]["written"]:
-            raise ValueError("Split vazio depois do limite de contexto: " + name)
-    Path(out, "length_report.json").write_text(json.dumps(stats, indent=2))
-    print(json.dumps(stats, indent=2))
-
-
-def load_model(adapter=None, training=False):
-    import torch
-    from transformers import AutoModelForCausalLM, BitsAndBytesConfig
-    from peft import PeftModel
-    if not torch.cuda.is_available():
-        raise RuntimeError("Este caminho requer CUDA. Verifique driver e torch.")
-    rank = int(os.environ.get("LOCAL_RANK", "0"))
-    torch.cuda.set_device(rank)
-    bf16 = torch.cuda.is_bf16_supported()
-    dtype = torch.bfloat16 if bf16 else torch.float16
-    lock = json.loads(Path("revisions.json").read_text())
-    model = AutoModelForCausalLM.from_pretrained(
-        MODEL, revision=lock["model:" + MODEL], torch_dtype=dtype,
-        quantization_config=BitsAndBytesConfig(
-            load_in_4bit=True, bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True, bnb_4bit_compute_dtype=dtype),
-        device_map={"": rank}, attn_implementation="sdpa")
-    model.config.use_cache = not training
-    if adapter:
-        model = PeftModel.from_pretrained(model, adapter, is_trainable=False)
-    return model, bf16
-
-
-def train(args):
-    import torch
-    from datasets import Dataset
-    from transformers import Trainer, TrainingArguments, DataCollatorForSeq2Seq, set_seed
-    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
-    set_seed(args.seed)
-    tok = tokenizer()
-    config = json.loads(Path(args.data, "length_report.json").read_text())
-    def encode(row):
-        prefix = prompt_ids(tok, row["messages"])
-        answer = tok.encode(row["answer"], add_special_tokens=False) + [tok.eos_token_id]
-        ids = prefix + answer
-        if len(ids) > config["max_seq"]:
-            raise ValueError("Dados mudaram: execute a preparacao novamente.")
-        return {"input_ids": ids, "attention_mask": [1] * len(ids),
-                "labels": [-100] * len(prefix) + answer}
-    parts = {}
-    for split in ("train", "validation"):
-        rows = read_jsonl(Path(args.data, split + ".jsonl"))
-        if split == "validation" and args.eval_limit:
-            rows = sorted(rows, key=lambda r: digest(str(args.seed) + r["id"]))[:args.eval_limit]
-        parts[split] = Dataset.from_list([encode(r) for r in rows])
-    model, bf16 = load_model(training=True)
-    model = prepare_model_for_kbit_training(
-        model, use_gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={"use_reentrant": False})
-    model = get_peft_model(model, LoraConfig(
-        task_type="CAUSAL_LM", r=args.rank, lora_alpha=2 * args.rank,
-        lora_dropout=0.05, target_modules="all-linear", bias="none"))
-    model.print_trainable_parameters()
-    ta = TrainingArguments(
-        output_dir=args.run, num_train_epochs=args.epochs, max_steps=args.max_steps,
-        per_device_train_batch_size=1, per_device_eval_batch_size=1,
-        gradient_accumulation_steps=args.accum, learning_rate=args.lr,
-        lr_scheduler_type="cosine", warmup_ratio=0.03, weight_decay=0.01,
-        max_grad_norm=1.0, optim="adamw_torch", bf16=bf16, fp16=not bf16,
-        gradient_checkpointing=True,
-        gradient_checkpointing_kwargs={"use_reentrant": False},
-        ddp_find_unused_parameters=False, ddp_broadcast_buffers=False,
-        eval_strategy="steps", eval_steps=100, save_strategy="steps", save_steps=100,
-        save_total_limit=2, load_best_model_at_end=True, metric_for_best_model="eval_loss",
-        greater_is_better=False, prediction_loss_only=True, logging_steps=10,
-        logging_nan_inf_filter=False, report_to="none", seed=args.seed,
-        data_seed=args.seed, dataloader_num_workers=0, label_names=["labels"])
-    trainer = Trainer(model=model, args=ta, train_dataset=parts["train"],
-                      eval_dataset=parts["validation"], processing_class=tok,
-                      data_collator=DataCollatorForSeq2Seq(
-                          tok, padding=True, label_pad_token_id=-100, pad_to_multiple_of=8))
-    torch.cuda.reset_peak_memory_stats()
-    start = time.perf_counter()
-    result = trainer.train(resume_from_checkpoint=args.resume or None)
-    if trainer.is_world_process_zero():
-        final = str(Path(args.run, "final_adapter"))
-        trainer.save_model(final)
-        tok.save_pretrained(final)
-        details = {**result.metrics, "seconds": time.perf_counter() - start,
-                   "rank0_peak_allocated_gib": torch.cuda.max_memory_allocated() / 2**30,
-                   "world_size": int(os.environ.get("WORLD_SIZE", "1")),
-                   "arguments": vars(args), "data_config": config,
-                   "revisions": json.loads(Path("revisions.json").read_text()),
-                   "data_hashes": {s: file_hash(Path(args.data, s + ".jsonl"))
-                                   for s in ("train", "validation")}}
-        Path(args.run, "run_report.json").write_text(json.dumps(details, indent=2))
-
-
-def remote_call(messages, max_new):
-    import urllib.request
-    import urllib.error
-    endpoint = os.environ["LLM_URL"]  # URL completa de chat/completions.
-    extra = json.loads(os.environ.get("LLM_EXTRA_JSON", "{}"))
-    if {"messages", "model"} & set(extra):
-        raise ValueError("LLM_EXTRA_JSON nao pode sobrescrever model/messages.")
-    body = {"model": os.environ["LLM_MODEL"], "messages": messages, **extra}
-    if not any(k in body for k in ("max_tokens", "max_completion_tokens")):
-        body["max_tokens"] = max_new
-    headers = {"Authorization": "Bearer " + os.environ["LLM_API_KEY"],
-               "Content-Type": "application/json"}
-    for attempt in range(3):
-        request = urllib.request.Request(endpoint, json.dumps(body).encode(), headers)
-        try:
-            with urllib.request.urlopen(request, timeout=180) as response:
-                raw = json.load(response)
-            choice = raw["choices"][0]
-            return (choice["message"].get("content") or "", raw.get("usage", {}),
-                    choice.get("finish_reason"), raw.get("model", body["model"]))
-        except urllib.error.HTTPError as exc:
-            if exc.code not in (429, 500, 502, 503, 504):
-                raise RuntimeError("HTTP " + str(exc.code) + ": verifique endpoint/modelo/parametros.") from exc
-            if attempt == 2:
-                raise
-            time.sleep(2 ** attempt)
-
-
-def predict(args):
-    rows = read_jsonl(args.input)
-    if args.limit:
-        rows = rows[:args.limit]
-    out = Path(args.output)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    if out.exists():
-        raise FileExistsError("Use outro --output para preservar a execucao anterior.")
-    report = {"arguments": vars(args), "input_sha256": file_hash(args.input),
-              "revisions": json.loads(Path("revisions.json").read_text()),
-              "llm_model": os.environ.get("LLM_MODEL") if args.api else None,
-              "llm_url": os.environ.get("LLM_URL") if args.api else None,
-              "api_extra": json.loads(os.environ.get("LLM_EXTRA_JSON", "{}")) if args.api else None}
-    if args.api and args.adapter:
-        raise ValueError("Nao combine --api e --adapter.")
-    if not args.api:
-        import torch
-        from transformers import set_seed
-        set_seed(args.seed)
-        tok = tokenizer()
-        model, _ = load_model(args.adapter)
-        model.eval()
-        gen = dict(max_new_tokens=args.max_new, do_sample=args.sample,
-                   pad_token_id=tok.pad_token_id, eos_token_id=tok.eos_token_id)
-        if args.sample:
-            gen.update(temperature=0.7, top_p=0.8, top_k=20)
-        # Aquecimento fora das medidas; usa somente o prompt do primeiro caso elegivel.
-        first = next((r for r in rows if r.get("eligible", True)), None)
-        if first:
-            warm = torch.tensor([prompt_ids(tok, first["messages"])], device=model.device)
-            with torch.inference_mode():
-                model.generate(warm, attention_mask=torch.ones_like(warm),
-                               max_new_tokens=8, do_sample=False,
-                               pad_token_id=tok.pad_token_id)
-            torch.cuda.synchronize()
-            torch.cuda.reset_peak_memory_stats()
-    with out.open("w", encoding="utf-8") as f:
-        for row in rows:
-            result = {"id": row["id"], "status": "ok", "text": ""}
-            if not row.get("eligible", True):
-                result["status"] = "context_exceeded"
-            else:
-                start = time.perf_counter()
-                if args.api:
-                    try:
-                        text, usage, finish, model_name = remote_call(row["messages"], args.max_new)
-                        result.update(text=text, usage=usage, finish_reason=finish, model=model_name)
-                        if finish == "length":
-                            result["status"] = "output_limit"
-                    except Exception as exc:
-                        result.update(status="api_error", error=type(exc).__name__)
-                        print("Falha de API:", row["id"], str(exc), flush=True)
-                else:
-                    x = torch.tensor([prompt_ids(tok, row["messages"])], device=model.device)
-                    torch.cuda.synchronize()
-                    start = time.perf_counter()
-                    with torch.inference_mode():
-                        y = model.generate(x, attention_mask=torch.ones_like(x), **gen)
-                    torch.cuda.synchronize()
-                    generated = y[0, x.shape[1]:].tolist()
-                    result.update(text=tok.decode(generated, skip_special_tokens=True).strip(),
-                                  output_tokens=len(generated), input_tokens=x.shape[1])
-                    if len(generated) >= args.max_new and generated[-1] != tok.eos_token_id:
-                        result["status"] = "output_limit"
-                result["latency_s"] = time.perf_counter() - start
-            f.write(json.dumps(result, ensure_ascii=False) + "\n")
-            f.flush()
-            print(result["id"], result["status"], flush=True)
-    if not args.api:
-        report["peak_allocated_gib"] = torch.cuda.max_memory_allocated() / 2**30
-        report["peak_reserved_gib"] = torch.cuda.max_memory_reserved() / 2**30
-    out.with_suffix(".meta.json").write_text(json.dumps(report, indent=2))
-
-
-def main():
-    ap = argparse.ArgumentParser()
-    sub = ap.add_subparsers(dest="command", required=True)
-    t = sub.add_parser("train")
-    t.add_argument("--data", default="data")
-    t.add_argument("--run", required=True)
-    t.add_argument("--epochs", type=float, default=2)
-    t.add_argument("--max-steps", type=int, default=-1)
-    t.add_argument("--accum", type=int, default=8)
-    t.add_argument("--rank", type=int, default=16)
-    t.add_argument("--lr", type=float, default=1e-4)
-    t.add_argument("--seed", type=int, default=42)
-    t.add_argument("--eval-limit", type=int, default=256)
-    t.add_argument("--resume")
-    p = sub.add_parser("predict")
-    p.add_argument("--input", required=True)
-    p.add_argument("--output", required=True)
-    p.add_argument("--adapter")
-    p.add_argument("--api", action="store_true")
-    p.add_argument("--sample", action="store_true")
-    p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--limit", type=int, default=0)
-    p.add_argument("--max-new", type=int, default=512)
-    a = ap.parse_args()
-    train(a) if a.command == "train" else predict(a)
-
-
-if __name__ == "__main__":
-    main()
-PY
-```
+Código: [lab_runtime.py](scripts/lab02-sql/lab_runtime.py).
 
 ### metrics.py
 
-```bash
-cat > metrics.py <<'PY'
-import json
-import math
-import statistics
-from pathlib import Path
-from lab_runtime import read_jsonl, write_jsonl
-
-
-def predictions(path, references):
-    rows = read_jsonl(path)
-    result = {r["id"]: r for r in rows}
-    if len(rows) != len(result):
-        raise ValueError("IDs de predicao duplicados.")
-    extra = set(result) - {r["id"] for r in references}
-    if extra:
-        raise ValueError("IDs fora do conjunto de referencia: " + repr(sorted(extra)[:5]))
-    return result
-
-
-def wilson(k, n):
-    if not n:
-        return None
-    z, p = 1.96, k / n
-    den = 1 + z * z / n
-    center = (p + z * z / (2 * n)) / den
-    half = z / den * math.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
-    return [round(center - half, 5), round(center + half, 5)]
-
-
-def percentile(values, p):
-    if not values:
-        return None
-    v = sorted(values)
-    index = (len(v) - 1) * p
-    lo, hi = math.floor(index), math.ceil(index)
-    return v[lo] + (v[hi] - v[lo]) * (index - lo)
-
-
-def report(cases, predicted, output, extra=None):
-    valid = [c for c in cases if c.get("reference_valid", True)]
-    eligible = [c for c in valid if c.get("eligible", True)]
-    lat = [p["latency_s"] for p in predicted.values() if p.get("status") == "ok"
-           and "latency_s" in p]
-    k = sum(c["correct"] for c in eligible)
-    summary = {
-        "n_total": len(cases), "n_reference_valid": len(valid),
-        "n_eligible_valid": len(eligible), "n_correct": k,
-        "accuracy_eligible": k / len(eligible) if eligible else None,
-        "wilson95_eligible": wilson(k, len(eligible)),
-        "accuracy_all_valid": sum(c["correct"] for c in valid) / len(valid) if valid else None,
-        "latency_success_n": len(lat), "p50_s": statistics.median(lat) if lat else None,
-        "p95_s": percentile(lat, 0.95),
-        "api_prompt_tokens": sum(p.get("usage", {}).get("prompt_tokens", 0) for p in predicted.values()),
-        "api_completion_tokens": sum(p.get("usage", {}).get("completion_tokens", 0) for p in predicted.values()),
-        **(extra or {})}
-    write_jsonl(output + ".cases.jsonl", cases)
-    Path(output + ".summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    print(json.dumps(summary, indent=2))
-
-
-if __name__ == "__main__":
-    import argparse
-    import random
-    ap = argparse.ArgumentParser(description="Diferenca pareada B - A com bootstrap.")
-    ap.add_argument("a")
-    ap.add_argument("b")
-    args = ap.parse_args()
-    a = {x["id"]: x for x in read_jsonl(args.a)}
-    b = {x["id"]: x for x in read_jsonl(args.b)}
-    if a.keys() != b.keys():
-        raise ValueError("Compare os mesmos IDs, sem misturar limit e teste completo.")
-    flags = lambda c: (c.get("eligible", True), c.get("reference_valid", True))
-    if any(flags(a[k]) != flags(b[k]) for k in a):
-        raise ValueError("Elegibilidade/referencias diferentes entre execucoes.")
-    ids = [k for k in a if all(flags(a[k]))]
-    if not ids:
-        raise ValueError("Nenhum caso comparavel.")
-    delta = [int(b[k]["correct"]) - int(a[k]["correct"]) for k in ids]
-    rng = random.Random(42)
-    boot = sorted(sum(rng.choices(delta, k=len(delta))) / len(delta) for _ in range(2000))
-    print(json.dumps({"n": len(delta), "delta_B_minus_A": sum(delta) / len(delta),
-                      "bootstrap95": [percentile(boot, .025), percentile(boot, .975)],
-                      "B_wins": delta.count(1), "A_wins": delta.count(-1)}, indent=2))
-PY
-```
+Código: [metrics.py](scripts/lab02-sql/metrics.py).
 
 ### extract_archives.py
 
-```bash
-cat > extract_archives.py <<'PY'
-"""Extrai ZIPs oficiais, inclusive arquivos ZIP internos, sem escapar do destino."""
-import argparse
-import zipfile
-from pathlib import Path
-
-
-def unpack(archive, destination):
-    destination = destination.resolve()
-    destination.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(archive) as z:
-        for item in z.infolist():
-            target = (destination / item.filename).resolve()
-            if not target.is_relative_to(destination):
-                raise ValueError("Caminho inesperado no ZIP: " + item.filename)
-            if (item.external_attr >> 16) & 0o170000 == 0o120000:
-                raise ValueError("Link simbolico inesperado no ZIP.")
-        z.extractall(destination)
-
-
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("archive")
-    ap.add_argument("destination")
-    a = ap.parse_args()
-    root = Path(a.destination)
-    if root.exists() and any(root.iterdir()):
-        raise ValueError("Use um diretorio de extracao vazio.")
-    unpack(Path(a.archive), root)
-    seen = set()
-    while True:
-        todo = [p for p in root.rglob("*.zip") if str(p.resolve()) not in seen]
-        if not todo:
-            break
-        for p in todo:
-            print("Extraindo arquivo interno:", p)
-            seen.add(str(p.resolve()))
-            unpack(p, p.parent)
-    print("Bancos SQLite encontrados:", len(list(root.rglob("*.sqlite"))))
-PY
-```
+Código: [extract_archives.py](scripts/lab02-sql/extract_archives.py).
 
 ### prepare_sql.py
 
-```bash
-cat > prepare_sql.py <<'PY'
-import argparse
-import json
-import sqlite3
-from pathlib import Path
-from lab_runtime import MODEL, digest, lock_repo, finalize_splits
-
-SYSTEM = (
-    "Generate one read-only SQLite SELECT query that answers the question using the "
-    "provided schema and evidence. Return only SQL, without explanations or Markdown. "
-    "Use SQLite syntax. Do not modify data."
-)
-
-
-def index_databases(root):
-    out = {}
-    for p in sorted(Path(root).rglob("*.sqlite")):
-        if p.stem in out:
-            raise ValueError("Banco duplicado: " + p.stem + ". Use uma unica copia do pacote.")
-        out[p.stem] = p.resolve()
-    if not out:
-        raise ValueError("Nenhum .sqlite em " + str(root) + "; confira ZIPs internos.")
-    return out
-
-
-def compact_schema(path):
-    # Extrai somente metadados, nunca utiliza o SQL correto para selecionar tabelas.
-    with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as con:
-        names = [r[0] for r in con.execute(
-            "SELECT name FROM sqlite_master WHERE type IN ('table','view') "
-            "AND name NOT LIKE 'sqlite_%' ORDER BY name")]
-        lines = []
-        for name in names:
-            quoted = '"' + name.replace('"', '""') + '"'
-            cols = list(con.execute("PRAGMA table_info(" + quoted + ")"))
-            body = ", ".join('"' + c[1].replace('"', '""') + '" ' + (c[2] or "ANY")
-                             + (" PK" + str(c[5]) if c[5] else "") for c in cols)
-            lines.append(quoted + "(" + body + ")")
-            for fk in con.execute("PRAGMA foreign_key_list(" + quoted + ")"):
-                lines.append("  FK group=" + str(fk[0]) + " part=" + str(fk[1]) + ": "
-                             + str(fk[3]) + " -> " + str(fk[2]) + "." + str(fk[4]))
-    return "\n".join(lines)
-
-
-def main():
-    from datasets import load_dataset
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--train-root", required=True)
-    ap.add_argument("--test-root", required=True)
-    ap.add_argument("--out", default="data")
-    ap.add_argument("--max-seq", type=int, default=2048)
-    ap.add_argument("--max-new", type=int, default=512)
-    args = ap.parse_args()
-    lock_repo(MODEL)
-    train_repo, test_repo = "birdsql/bird23-train-filtered", "birdsql/bird_mini_dev"
-    tr_rev, te_rev = lock_repo(train_repo, "dataset"), lock_repo(test_repo, "dataset")
-    source = load_dataset(train_repo, revision=tr_rev, split="train")
-    test = load_dataset(test_repo, revision=te_rev, split="mini_dev_sqlite")
-    train_ids, test_ids = set(source["db_id"]), set(test["db_id"])
-    if train_ids & test_ids:
-        raise ValueError("Sobreposicao inesperada entre bancos de treino e mini-dev.")
-    ids = sorted(train_ids, key=lambda x: digest("42:" + x))
-    validation_ids = set(ids[:max(1, round(len(ids) * 0.1))])
-    indexes = {"train": index_databases(args.train_root), "test": index_databases(args.test_root)}
-    missing = (train_ids - indexes["train"].keys()) | (test_ids - indexes["test"].keys())
-    if missing:
-        raise ValueError("Faltam bancos SQLite: " + repr(sorted(missing)))
-    schemas, splits = {}, {"train": [], "validation": [], "test": []}
-    manifest, seen = {}, set()
-    for origin, dataset in (("train", source), ("test", test)):
-        for i, row in enumerate(dataset):
-            db = row["db_id"]
-            path = indexes[origin][db]
-            if db not in schemas:
-                schemas[db] = compact_schema(path)
-                manifest[db] = {"path": str(path), "size_bytes": path.stat().st_size}
-            unique = digest(db + "\n" + row["question"].strip())
-            if unique in seen:
-                continue
-            seen.add(unique)
-            split = "test" if origin == "test" else "validation" if db in validation_ids else "train"
-            rid = origin + ":" + str(row.get("question_id", i))
-            user = ("Schema (PK numbers identify composite-key order):\n" + schemas[db]
-                    + "\nEvidence:\n" + (row.get("evidence") or "")
-                    + "\nQuestion:\n" + row["question"])
-            splits[split].append({"id": rid, "db_id": db, "db_path": str(path),
-                "difficulty": row.get("difficulty", "unspecified"),
-                "messages": [{"role": "system", "content": SYSTEM},
-                             {"role": "user", "content": user}],
-                "answer": row["SQL"].strip(), "gold": row["SQL"].strip()})
-    for split in splits:
-        splits[split].sort(key=lambda r: digest("42:" + r["id"]))
-    finalize_splits(splits, args.out, args.max_seq, args.max_new)
-    Path(args.out, "db_manifest.json").write_text(json.dumps(manifest, indent=2))
-    Path(args.out, "source_report.json").write_text(json.dumps({
-        "train_repo": train_repo, "train_revision": tr_rev,
-        "test_repo": test_repo, "test_revision": te_rev,
-        "validation_db_ids": sorted(validation_ids), "test_db_ids": sorted(test_ids),
-        "source_rows": len(source), "mini_dev_rows": len(test),
-        "pre_length_counts": {k: len(v) for k, v in splits.items()},
-        "arguments": vars(args)}, indent=2))
-
-
-if __name__ == "__main__":
-    main()
-PY
-```
+Código: [prepare_sql.py](scripts/lab02-sql/prepare_sql.py).
 
 ### score_sql.py
 
-```bash
-cat > score_sql.py <<'PY'
-import argparse
-import re
-import sqlite3
-import time
-from collections import Counter
-from pathlib import Path
-from lab_runtime import read_jsonl
-from metrics import predictions, report
-
-
-def clean_sql(text):
-    text = text.strip()
-    fence = re.fullmatch(r"```(?:sql|sqlite)?\s*\n(.*?)\n```", text, re.S | re.I)
-    return fence.group(1).strip() if fence else text
-
-
-def authorize(action, arg1, arg2, database, trigger):
-    allowed = {sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_FUNCTION,
-               getattr(sqlite3, "SQLITE_RECURSIVE", 33)}
-    if action == sqlite3.SQLITE_FUNCTION:
-        function = (arg2 or arg1 or "").lower()
-        if function in {"load_extension", "readfile", "writefile", "edit", "fts3_tokenizer"}:
-            return sqlite3.SQLITE_DENY
-    return sqlite3.SQLITE_OK if action in allowed else sqlite3.SQLITE_DENY
-
-
-def execute_readonly(path, sql, timeout=15, max_rows=100000):
-    con = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
-    try:
-        con.execute("PRAGMA query_only=ON")
-        con.execute("PRAGMA busy_timeout=1000")
-        con.enable_load_extension(False)
-        con.set_authorizer(authorize)
-        deadline = time.monotonic() + timeout
-        con.set_progress_handler(lambda: int(time.monotonic() > deadline), 1000)
-        cur = con.execute(clean_sql(sql))  # execute rejeita multiplas instrucoes.
-        if cur.description is None:
-            raise ValueError("A instrucao nao retornou uma tabela.")
-        rows = cur.fetchmany(max_rows + 1)
-        if len(rows) > max_rows:
-            raise ValueError("Limite de linhas atingido.")
-        return rows
-    finally:
-        con.close()
-
-
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("reference")
-    ap.add_argument("prediction")
-    ap.add_argument("--out", required=True)
-    ap.add_argument("--timeout", type=float, default=15)
-    args = ap.parse_args()
-    refs = read_jsonl(args.reference)
-    pred = predictions(args.prediction, refs)
-    cases = []
-    for row in refs:
-        p = pred.get(row["id"], {"status": "missing", "text": ""})
-        c = {"id": row["id"], "db_id": row["db_id"], "difficulty": row["difficulty"],
-             "eligible": row.get("eligible", True), "reference_valid": True,
-             "correct": False, "bag_correct": False, "executable": False,
-             "status": p["status"]}
-        try:
-            gold = execute_readonly(row["db_path"], row["gold"], args.timeout)
-            c["gold_empty"] = len(gold) == 0
-        except (sqlite3.Error, ValueError) as exc:
-            c.update(reference_valid=False, reference_error=str(exc))
-            cases.append(c)
-            continue
-        if p["status"] == "ok":
-            try:
-                got = execute_readonly(row["db_path"], p["text"], args.timeout)
-                c["executable"] = True
-                c["correct"] = set(got) == set(gold)
-                c["bag_correct"] = Counter(got) == Counter(gold)
-            except (sqlite3.Error, ValueError) as exc:
-                c["sql_error"] = str(exc)
-        cases.append(c)
-    eligible = [c for c in cases if c["eligible"] and c["reference_valid"]]
-    by_difficulty = {}
-    for level in sorted({c["difficulty"] for c in eligible}):
-        subset = [c for c in eligible if c["difficulty"] == level]
-        by_difficulty[level] = {"n": len(subset), "ex_set": sum(c["correct"] for c in subset) / len(subset)}
-    report(cases, pred, args.out, {
-        "metric": "local_EX_set_not_official_BIRD_score",
-        "execution_rate": sum(c["executable"] for c in eligible) / len(eligible) if eligible else None,
-        "ex_bag": sum(c["bag_correct"] for c in eligible) / len(eligible) if eligible else None,
-        "gold_empty_n": sum(c.get("gold_empty", False) for c in eligible),
-        "by_difficulty": by_difficulty})
-
-
-if __name__ == "__main__":
-    main()
-PY
-```
+Código: [score_sql.py](scripts/lab02-sql/score_sql.py).
 
 ## 6. Verificar memória e treinar
 
@@ -847,10 +191,7 @@ Não existe previsão confiável de duração sem executar o teste curto. Use os
 Para retomar um treino interrompido, use uma pasta de checkpoint realmente existente:
 
 ```bash
-python - <<'PY'
-from pathlib import Path
-print('\n'.join(str(p) for p in sorted(Path('runs/main_r16_lr1e4').glob('checkpoint-*'))))
-PY
+python listar_checkpoints.py
 # Exemplo de forma, substituindo pelo caminho que o comando acima mostrou:
 # CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc_per_node=2 lab_runtime.py train \
 #   --data data --run runs/main_r16_lr1e4 --epochs 2 --accum 8 \
@@ -866,12 +207,7 @@ Use primeiro a **validação** para ajustar prompt, taxa de aprendizado, número
 Para uma verificação funcional rápida, crie um conjunto de até 50 casos elegíveis da validação:
 
 ```bash
-python - <<'PY'
-from lab_runtime import read_jsonl, write_jsonl
-rows = [r for r in read_jsonl('data/validation.jsonl') if r['eligible']][:50]
-assert rows, 'Nao ha validacao elegivel'
-write_jsonl('data/validation_demo.jsonl', rows)
-PY
+python preparar_demo.py
 CUDA_VISIBLE_DEVICES=1 python lab_runtime.py predict \
   --input data/validation_demo.jsonl --output results/val_base.jsonl
 CUDA_VISIBLE_DEVICES=1 python lab_runtime.py predict \
@@ -1033,7 +369,7 @@ Se mostrar **os dois laboratórios na mesma hora**, use aproximadamente 10 minut
 
 ## 12. O que preservar ao terminar
 
-Guarde o Markdown, scripts extraídos, `requirements.txt`, `requirements-resolved.txt`, `revisions.json`, relatórios de preparação, JSONLs utilizados, logs, `run_report.json`, adaptador final, predições, metadados de inferência e métricas. Registre a versão do driver e qual GPU serviu cada medição.
+Guarde o Markdown, scripts utilizados, `requirements.txt`, `requirements-resolved.txt`, `revisions.json`, relatórios de preparação, JSONLs utilizados, logs, `run_report.json`, adaptador final, predições, metadados de inferência e métricas. Registre a versão do driver e qual GPU serviu cada medição.
 
 O adaptador sozinho não é um modelo completo. Para reutilizá-lo, carregue a mesma revisão do Qwen base e depois o adaptador, como faz `load_model`. Não é necessário mesclar os pesos para a demonstração. Uma futura conversão para GGUF/Ollama deve ser tratada como outro artefato, com nova avaliação, porque a quantização e o runtime mudam.
 
@@ -1056,3 +392,5 @@ Fontes consultadas em 10/10/2026; preserve revisões e hashes dos pacotes utiliz
 - [bitsandbytes 0.47, requisitos de instalação](https://huggingface.co/docs/bitsandbytes/v0.47.0/en/installation).
 - [Hugging Face Hub 0.34.4, autenticação e CLI](https://huggingface.co/docs/huggingface_hub/v0.34.4/en/guides/cli).
 - [OpenRouter, formato da API usado como exemplo de endpoint compatível](https://openrouter.ai/docs/api_reference/overview).
+
+Scripts auxiliares: [inspecionar_dados.py](scripts/lab02-sql/inspecionar_dados.py), [listar_checkpoints.py](scripts/lab02-sql/listar_checkpoints.py), [preparar_demo.py](scripts/lab02-sql/preparar_demo.py).
