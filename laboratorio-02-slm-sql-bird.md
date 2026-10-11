@@ -25,7 +25,7 @@ Este arquivo inclui todos os scripts de que precisa e pode ser utilizado sem exe
 
 Este roteiro considera **Linux/Ubuntu, Bash, Python 3.11 ou 3.12, duas placas de 8 GB e aproximadamente 32 GB de RAM**. Se o computador estiver em Windows, execute em Ubuntu/WSL2 com CUDA funcionando, ou use Ubuntu nativo; os comandos abaixo não são de PowerShell.
 
-Use o ambiente isolado deste laboratório. Execute os dois laboratórios em sequência quando cada um utilizar as duas GPUs. Feche outras inferências que ocupem VRAM. Reserve inicialmente 25–40 GB de disco para ambiente, cache do modelo e checkpoints; no laboratório BIRD, acrescente espaço para os bancos e os ZIPs, conforme a seção de download.
+Use o ambiente compartilhado descrito em [Preparação geral](preparacao-geral.md). Execute os dois laboratórios em sequência quando cada um utilizar as duas GPUs. Feche outras inferências que ocupem VRAM. Reserve inicialmente 25–40 GB de disco para ambiente, cache do modelo e checkpoints; no laboratório BIRD, acrescente espaço para os bancos e os ZIPs, conforme a seção de download.
 
 **As memórias das placas não se somam automaticamente.** O treinamento usa Distributed Data Parallel (DDP): um processo e uma cópia quantizada do modelo em cada GPU. Cada exemplo precisa caber nos 8 GB de uma placa. A segunda GPU distribui exemplos e sincroniza os gradientes dos adaptadores. O ganho de velocidade precisa ser medido; não se presume 2×.
 
@@ -37,28 +37,14 @@ nvidia-smi topo -m
 python3 --version
 ```
 
-Se `nvidia-smi` funciona, não há razão para reinstalar o driver para começar. A indicação “CUDA Version” desse comando descreve a capacidade do driver; o PyTorch instala seu runtime CUDA. O comando abaixo usa a distribuição oficial cu128 do PyTorch 2.7.1, que requer um driver compatível. Se seu driver não for compatível, consulte a matriz oficial indicada nas referências antes de trocar a distribuição.
+Se `nvidia-smi` funciona, não há razão para reinstalar o driver para começar. A indicação “CUDA Version” desse comando descreve a capacidade do driver; o PyTorch instala seu runtime CUDA. A preparação geral usa a distribuição oficial cu128 do PyTorch 2.7.1, que requer um driver compatível. Se seu driver não for compatível, consulte a matriz oficial indicada nas referências antes de trocar a distribuição.
 
-Dentro da pasta do laboratório criada na seção 1:
+Prepare primeiro o ambiente compartilhado conforme [Preparação geral](preparacao-geral.md). Dentro da pasta do laboratório criada na seção 1, ative esse ambiente:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y python3-venv python3-pip git curl unzip time
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128
-cat > requirements.txt <<'REQ'
-transformers==4.55.4
-peft==0.17.1
-accelerate==1.10.1
-bitsandbytes==0.47.0
-datasets==4.0.0
-huggingface-hub==0.34.4
-REQ
-python -m pip install -r requirements.txt
-python -m pip check
-python -m pip freeze > requirements-resolved.txt
+source ~/slm-labs/.venv/bin/activate
+cp ~/slm-labs/requirements.txt ./requirements.txt
+cp ~/slm-labs/requirements-resolved.txt ./requirements-resolved.txt
 mkdir -p data runs logs results raw
 export TOKENIZERS_PARALLELISM=false
 ```

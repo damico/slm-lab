@@ -49,32 +49,17 @@ Crie uma pasta nova. Salve uma cópia deste Markdown nela com o nome `laboratori
 ```bash
 mkdir -p lab03-recibos
 cd lab03-recibos
-# Copie o Markdown baixado para esta pasta, com o nome laboratorio.md.
+cp ~/git/slm-lab/laboratorio-03-slm-extracao-recibos.md ./laboratorio.md
 nvidia-smi --query-gpu=index,name,memory.total,memory.free,driver_version --format=csv
 python3 --version
 ```
 
-Instale o ambiente. O runtime cu128 requer driver compatível; consulte a [matriz oficial do PyTorch](https://pytorch.org/get-started/previous-versions/) se a importação ou CUDA falhar. Não é necessário instalar um CUDA Toolkit separado para estes wheels.
+Prepare primeiro o ambiente compartilhado conforme [Preparação geral](preparacao-geral.md). Depois, ative-o abaixo. O runtime cu128 requer driver compatível; consulte a [matriz oficial do PyTorch](https://pytorch.org/get-started/previous-versions/) se a importação ou CUDA falhar. Não é necessário instalar um CUDA Toolkit separado para estes wheels.
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y python3-venv python3-pip time tesseract-ocr tesseract-ocr-eng poppler-utils
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128
-cat > requirements.txt <<'REQ'
-transformers==4.55.4
-peft==0.17.1
-accelerate==1.10.1
-bitsandbytes==0.47.0
-datasets==4.0.0
-huggingface-hub==0.34.4
-Pillow==11.3.0
-REQ
-python -m pip install -r requirements.txt
-python -m pip check
-python -m pip freeze > requirements-resolved.txt
+source ~/slm-labs/.venv/bin/activate
+cp ~/slm-labs/requirements.txt ./requirements.txt
+cp ~/slm-labs/requirements-resolved.txt ./requirements-resolved.txt
 mkdir -p runs logs results raw
 export TOKENIZERS_PARALLELISM=false
 export OMP_THREAD_LIMIT=1

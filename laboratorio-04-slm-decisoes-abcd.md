@@ -80,39 +80,23 @@ Use Ubuntu, Bash, Python 3.11 ou 3.12, aproximadamente 32 GB de RAM e uma reserv
 
 **O DDP não soma os 8 GB das placas.** Cada GPU recebe uma cópia quantizada e processa seus exemplos. O modelo e as ativações precisam caber em uma placa. O ganho de velocidade da segunda GPU depende da comunicação e deve ser medido.
 
-Crie uma pasta independente dos outros labs e copie este Markdown para ela com o nome `laboratorio.md`:
+Prepare primeiro o ambiente compartilhado conforme [Preparação geral](preparacao-geral.md).
+
+Crie uma pasta independente dos outros labs e copie este Markdown para ela com o nome `laboratorio.md`. O exemplo considera o repositório em `~/git/slm-lab`; ajuste o caminho de origem se você o salvou em outro lugar:
 
 ```bash
 mkdir -p lab04-decisoes
 cd lab04-decisoes
-# Copie o Markdown baixado para esta pasta e nomeie a copia laboratorio.md.
+cp ~/git/slm-lab/laboratorio-04-slm-decisoes-abcd.md ./laboratorio.md
 nvidia-smi --query-gpu=index,name,memory.total,memory.free,driver_version --format=csv
 nvidia-smi topo -m
 python3 --version
 ```
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y python3-venv python3-pip curl time
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install torch==2.7.1 --index-url https://download.pytorch.org/whl/cu128
-cat > requirements.txt <<'REQ'
-transformers==4.55.4
-peft==0.17.1
-accelerate==1.10.1
-bitsandbytes==0.47.0
-datasets==4.0.0
-huggingface-hub==0.34.4
-numpy==2.2.6
-scipy==1.15.3
-scikit-learn==1.7.1
-joblib==1.5.1
-REQ
-python -m pip install -r requirements.txt
-python -m pip check
-python -m pip freeze > requirements-resolved.txt
+source ~/slm-labs/.venv/bin/activate
+cp ~/slm-labs/requirements.txt ./requirements.txt
+cp ~/slm-labs/requirements-resolved.txt ./requirements-resolved.txt
 mkdir -p raw runs results logs
 export TOKENIZERS_PARALLELISM=false
 ```
@@ -141,7 +125,14 @@ O apêndice contém todo o código. O bloco abaixo extrai os cinco arquivos para
 python - <<'PY'
 from pathlib import Path
 import re
-text = Path('laboratorio.md').read_text(encoding='utf-8')
+source = Path('laboratorio.md')
+if not source.is_file():
+    raise SystemExit(
+        'Arquivo laboratorio.md ausente na pasta atual. '
+        'Copie laboratorio-04-slm-decisoes-abcd.md para esta pasta '
+        'com o nome laboratorio.md, conforme a seção 4.'
+    )
+text = source.read_text(encoding='utf-8')
 blocks = re.findall(r"^cat > ([a-z_]+\.py) <<'PY'\n(.*?)^PY$", text, re.M | re.S)
 expected = {'decision_core.py', 'prepare_abcd.py', 'decision_lab.py',
             'evaluate_decisions.py', 'serve_decisions.py'}
