@@ -189,7 +189,7 @@ kill "$LAB04_MONITOR_PID"
 
 A cada 100 passos, o Trainer avalia a perda em até 512 decisões fixas da validação. Ao terminar, carrega o melhor checkpoint avaliado e salva `runs/main/final_adapter`. O relatório de treino registra tempo e pico de memória alocada no processo principal; o CSV do `nvidia-smi` registra ambas as placas.
 
-Não há duração ou consumo de VRAM medidos no seu equipamento neste tutorial. Estime o tempo com passos após o aquecimento e a aproximação `ceil(decisões_elegíveis_de_treino / 16) × épocas`, acrescentando avaliação e gravação.
+**Medição nesta máquina:** o treino principal terminou com 3.270 passos, duas épocas e `train_runtime` de 30.062 s (8h21min). `/usr/bin/time` mediu 8h26min21s de tempo total e reportou código de saída 0. O adaptador e `run_report.json` foram salvos. O pico de VRAM não foi fornecido nos resultados disponíveis; não estimamos esse valor a partir da memória RAM do processo.
 
 Se faltar memória, feche outras inferências, reduza rank para 8 e, se necessário, prepare novos dados com `--max-seq 1536`. Mantenha o mesmo contexto em todas as condições comparadas. Aumentar a acumulação não resolve um único exemplo que excede a memória. Uma execução em uma GPU pode usar `--accum 16` para preservar o batch efetivo. Para retomar, use `--resume runs/main/checkpoint-N` com um checkpoint existente e a mesma receita.
 
@@ -324,16 +324,20 @@ As latências incluem tokenização e inferência; excluem construção/recupera
 
 O bootstrap compara B − A reamostrando **conversas inteiras**, porque decisões de uma mesma conversa são correlacionadas. O intervalo de 95% é aproximado. Se incluir zero, não apresente o ganho de acurácia como estabelecido pelo teste.
 
-Os números abaixo devem ser preenchidos após as execuções:
+Resultados do teste completo, com 13.152 decisões em 1.004 conversas:
 
-| Condição | Acurácia | Macro-F1 | Acerto nas ações | p50/p95 | Memória/custo |
+| Condição | Acurácia | Macro-F1 | Acerto nas ações | p50/p95 por decisão | Memória/custo |
 |---|---|---|---|---|---|
-| TF-IDF + regressão logística | a medir | a medir | a medir | a medir | a medir |
-| Qwen3-1.7B original com prompt | a medir | a medir | a medir | a medir | a medir |
-| Qwen3-1.7B especializado | a medir | a medir | a medir | a medir | a medir |
-| LLM maior, versão registrada | a medir | a medir | a medir | a medir | a medir |
+| TF-IDF + regressão logística | 75,87% | 0,1006 | 16,52% | 0,0028 / 0,0032 s | CPU; sem cobrança por chamada |
+| Qwen3-1.7B original com prompt | 65,13% | 0,0316 | 0,94% | 0,3454 / 0,3802 s | GPU; pico não registrado |
+| Qwen3-1.7B especializado | **85,45%** | **0,6812** | **64,33%** | 0,1629 / 0,2101 s | GPU; pico não registrado |
+| OpenAI `gpt-4.1-mini` | 55,37% | 0,2445 | 40,44% | 0,8188 / 1,0552 s | API; aproximadamente US$ 4,04 |
 
-O valor do especialista precisa aparecer nos resultados: qualidade adequada ao processo, recursos necessários e comportamento da revisão. O maior pode continuar mais preciso. O classificador simples pode ser suficiente. Nenhuma vantagem foi presumida ou medida antecipadamente.
+O bootstrap pareado por conversa estimou ganho de 20,32 pontos percentuais do especialista sobre o modelo original (IC 95%: 19,37 a 21,28) e 30,08 pontos sobre a API (IC 95%: 29,15 a 31,04). O especialista selecionou 11.490 casos para não revisão, cobertura de 87,36%, com erro observado de 10,08% no teste. O alvo de 10% foi escolhido didaticamente na seleção; esse resultado de teste não garante o mesmo erro em produção.
+
+O teste teve 13.135 respostas com latência bem-sucedida para a API e 17 sem sucesso; no modelo original, 13.120 tiveram latência bem-sucedida. As acurácias usam todas as 13.152 decisões, penalizando falhas. Investigue os status em `results/test_llm.jsonl` e `results/test_original.jsonl` antes de atribuir todas essas falhas à qualidade do modelo.
+
+A API reportou 9.931.657 tokens de entrada e 44.131 de saída. Com as tarifas consultadas em 12/10/2026 para `gpt-4.1-mini` (US$ 0,40 por milhão de entrada e US$ 1,60 por milhão de saída), o custo calculado é aproximadamente US$ 4,04, sem incluir eventuais tributos. Consulte a [página de preços atual](https://developers.openai.com/api/docs/models/gpt-4.1-mini) ao repetir o experimento.
 
 ## 11. Usar a CLI e a API local
 
@@ -402,9 +406,9 @@ Este dataset público pode ter aparecido no pré-treinamento dos modelos. A divi
 
 ## 13. Verificações realizadas e referências
 
-Na autoria, foram inspecionados os dados completos da revisão indicada, confirmando 131.611 decisões, seu alinhamento temporal e as 31 classes. Também foram verificados a sintaxe dos scripts Python, métricas, calibração, baseline e contrato de decisão com casos controlados em CPU. A lógica de janela foi testada com um tokenizer substituto; a tokenização real e a inferência do Qwen precisam ser verificadas no ambiente do lab. **Não foi executado o treino CUDA nem medida a qualidade ou memória do Qwen ajustado nas suas placas.** Os testes curtos deste roteiro são necessários no seu ambiente.
+Na revisão indicada, foram inspecionadas as conversas do ABCD, confirmando 131.611 decisões e as 31 classes. O treino, a inferência e a avaliação descritos acima foram executados nas duas RTX 3070 e na API OpenAI. A qualidade e os tempos da tabela são medições dessa execução e desse split; o pico de VRAM não foi registrado nos dados disponíveis. Os resultados não validam outros domínios nem garantem desempenho futuro.
 
-Fontes primárias consultadas em 11/10/2026:
+Fontes primárias consultadas em 12/10/2026:
 
 - [ASAPP, repositório oficial ABCD, dados e licença](https://github.com/asappresearch/abcd).
 - [Chen et al., artigo ABCD, NAACL 2021](https://aclanthology.org/2021.naacl-main.239/).
@@ -412,6 +416,8 @@ Fontes primárias consultadas em 11/10/2026:
 - [Qwen3-1.7B, modelo aberto utilizado](https://huggingface.co/Qwen/Qwen3-1.7B).
 - [Transformers 4.55.4, Qwen3ForSequenceClassification](https://huggingface.co/docs/transformers/v4.55.4/en/model_doc/qwen3#transformers.Qwen3ForSequenceClassification).
 - [PEFT, modelos para classificação](https://huggingface.co/docs/peft/v0.17.0/en/package_reference/peft_model).
+- [OpenAI, endpoint Chat Completions](https://platform.openai.com/docs/api-reference/chat).
+- [OpenAI, modelo gpt-4.1-mini e preços](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
 - [PEFT, quantização e treinamento de adaptadores](https://huggingface.co/docs/peft/en/developer_guides/quantization).
 - [Guo et al., On Calibration of Modern Neural Networks](https://proceedings.mlr.press/v70/guo17a.html).
 - [PyTorch, distribuições oficiais por versão](https://pytorch.org/get-started/previous-versions/).
