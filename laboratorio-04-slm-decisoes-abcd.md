@@ -268,19 +268,27 @@ O original é Qwen3-1.7B com sua cabeça de linguagem, usando prompt. A diferen�
 
 A predição original é determinística (`do_sample=False`). O script normaliza `temperature`, `top_p` e `top_k` herdados da configuração do Qwen para evitar avisos de parâmetros de amostragem que não se aplicam à geração gulosa. Se você já copiou `decision_lab.py` para a pasta do laboratório, atualize essa cópia a partir de `scripts/lab04-decisoes/decision_lab.py` antes de repetir a predição.
 
-Para o LLM maior, use um endpoint externo de Chat Completions que você já tenha disponível, por exemplo servindo Qwen3-32B. O modelo maior não será hospedado nas suas duas placas neste roteiro. Configure a URL completa, o nome aceito pelo servidor e sua chave:
+Para comparar com um modelo servido pela OpenAI, configure o endpoint oficial de Chat Completions, o identificador do modelo e uma chave da API Platform. Este exemplo usa `gpt-4.1-mini`; a API é cobrada conforme o uso e o modelo é executado na nuvem, não nas RTX 3070. Consulte a [documentação de Chat Completions](https://platform.openai.com/docs/api-reference/chat) e a [lista de modelos](https://platform.openai.com/docs/models) para modelos e parâmetros disponíveis na sua conta. Antes de chamar o endpoint, conte quantas linhas elegíveis serão enviadas:
 
 ```bash
-export LLM_URL='https://SEU_ENDPOINT/v1/chat/completions'
-export LLM_MODEL='Qwen/Qwen3-32B'
-read -r -s -p 'Chave da API: ' LLM_API_KEY
+python count_api_calls.py
+```
+
+O probe abaixo limita a validação às três primeiras linhas. Como linhas inelegíveis não geram requisição, o número pode ficar entre zero e três. O teste completo faz uma chamada para cada linha elegível de `data/test.jsonl`. O total real pode crescer se houver retries automáticos por erros HTTP temporários; o prompt inteiro de cada exemplo é enviado à OpenAI.
+
+Configure a URL, modelo e chave:
+
+```bash
+export LLM_URL='https://api.openai.com/v1/chat/completions'
+export LLM_MODEL='gpt-4.1-mini'
+read -r -s -p 'Chave da API OpenAI: ' LLM_API_KEY
 export LLM_API_KEY
-export LLM_EXTRA_JSON='{"temperature":0,"chat_template_kwargs":{"enable_thinking":false}}'
+export LLM_EXTRA_JSON='{"temperature":0,"max_tokens":32}'
 python decision_lab.py predict --data data --backend api \
   --input data/validation.jsonl --output results/val_api_probe.jsonl --limit 3
 ```
 
-`chat_template_kwargs` depende do servidor; adapte-o se sua API tiver outro parâmetro para desabilitar raciocínio. O cliente usa `max_tokens=32` por padrão e aceita sobrescrever com `max_tokens` ou `max_completion_tokens` em `LLM_EXTRA_JSON`. Faça esse ajuste na validação. As chamadas têm custo e enviam os textos ao endpoint escolhido.
+O `max_tokens` limita o tamanho da resposta, que deve conter apenas um rótulo. A chave é lida sem eco no terminal; não a coloque nos comandos salvos. Faça primeiro o probe curto e confira as saídas antes do conjunto de teste.
 
 Depois de verificar que as respostas da API contêm apenas rótulos completos:
 
@@ -430,7 +438,7 @@ Código: [evaluate_decisions.py](scripts/lab04-decisoes/evaluate_decisions.py).
 
 Código: [serve_decisions.py](scripts/lab04-decisoes/serve_decisions.py).
 
-Scripts auxiliares: [inspecionar_dados.py](scripts/lab04-decisoes/inspecionar_dados.py).
+Scripts auxiliares: [inspecionar_dados.py](scripts/lab04-decisoes/inspecionar_dados.py), [count_api_calls.py](scripts/lab04-decisoes/count_api_calls.py).
 
 ## Executar os comandos por script Bash
 

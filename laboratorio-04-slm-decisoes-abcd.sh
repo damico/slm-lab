@@ -165,11 +165,12 @@ python decision_lab.py predict --data data --backend tfidf --artifact runs/tfidf
 
 # Bloco 15 de laboratorio-04-slm-decisoes-abcd.md: 10. Comparar com o modelo original e um LLM maior
 etapa_15() {
-export LLM_URL='https://SEU_ENDPOINT/v1/chat/completions'
-export LLM_MODEL='Qwen/Qwen3-32B'
-read -r -s -p 'Chave da API: ' LLM_API_KEY
+export LLM_URL='https://api.openai.com/v1/chat/completions'
+export LLM_MODEL='gpt-4.1-mini'
+read -r -s -p 'Chave da API OpenAI: ' LLM_API_KEY
 export LLM_API_KEY
-export LLM_EXTRA_JSON='{"temperature":0,"chat_template_kwargs":{"enable_thinking":false}}'
+export LLM_EXTRA_JSON='{"temperature":0,"max_tokens":32}'
+python count_api_calls.py
 python decision_lab.py predict --data data --backend api \
   --input data/validation.jsonl --output results/val_api_probe.jsonl --limit 3
 }
