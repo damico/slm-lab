@@ -242,21 +242,22 @@ CUDA_VISIBLE_DEVICES=1 python lab_runtime.py predict \
 
 Os dois modelos locais usam a mesma revisão da base, quantização, prompt, GPU e limite de saída. O padrão do tutorial é decodificação gulosa para uma primeira comparação determinística, sem modo thinking. A documentação Qwen recomenda amostragem no uso geral: `--sample` usa temperatura 0,7, top-p 0,8 e top-k 20. Se escolher amostragem na validação, aplique-a a ambas as condições e repita com sementes fixas, por exemplo 42, 43 e 44, em arquivos distintos. Não escolha a melhor resposta entre tentativas sem declarar um experimento diferente.
 
-Para o **LLM maior**, o script aceita um endpoint HTTPS de chat completions com formato compatível. Escolha o modelo forte que você efetivamente pretende substituir ou complementar; registre provedor, identificador, data e parâmetros. O comando a seguir é configurável: os valores entre `<...>` devem ser substituídos. A chave não deve ser escrita no Markdown nem em Git.
+Para comparar com um modelo servido pela OpenAI, use `gpt-4.1-mini` no endpoint oficial de Chat Completions. O teste BIRD fornece até 500 perguntas; o script chama a API uma vez por linha elegível. A chave é lida sem eco no terminal e não deve ser salva no Markdown nem no Git. A API é cobrada conforme os tokens processados; veja a estimativa abaixo e confirme as [tarifas atuais do modelo](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
 
 ```bash
-export LLM_URL='https://<seu-provedor>/<caminho>/chat/completions'
-export LLM_MODEL='<identificador-real-do-LLM-maior>'
-read -r -s -p 'Chave da API: ' LLM_API_KEY
+export LLM_URL='https://api.openai.com/v1/chat/completions'
+export LLM_MODEL='gpt-4.1-mini'
+read -r -s -p 'Chave da API OpenAI: ' LLM_API_KEY
 export LLM_API_KEY
 export LLM_EXTRA_JSON='{"temperature":0,"max_tokens":512}'
 ```
 
-Um exemplo de endpoint real com esse formato é `https://openrouter.ai/api/v1/chat/completions`; consulte o catálogo do provedor para definir `LLM_MODEL` e os custos. Também é possível usar um servidor próprio compatível. Alguns modelos de raciocínio não aceitam `temperature` ou usam `max_completion_tokens`; ajuste `LLM_EXTRA_JSON` à documentação do modelo. Se o orçamento inclui tokens internos de raciocínio, 512 pode ser insuficiente: estabeleça um orçamento adequado **na validação**, registre-o e mantenha-o no teste. O script transmite o JSON adicional como informado.
+O limite `max_tokens=512` é uma reserva para a resposta SQL; o script inclui essa reserva na preparação da janela, e o avaliador marca respostas truncadas como falha. Faça primeiro o piloto de uma pergunta e confira o retorno antes do teste completo.
 
-Faça primeiro uma chamada para confirmar compatibilidade e custo:
+Antes do piloto, conte as chamadas previstas. Depois faça uma chamada para confirmar compatibilidade e inspecionar o uso de tokens:
 
 ```bash
+python count_api_calls.py --test
 python lab_runtime.py predict --api --limit 1 \
   --input data/validation_demo.jsonl --output results/api_smoke.jsonl
 ```
@@ -266,10 +267,13 @@ Esse arquivo de uma chamada serve apenas para inspeção. Não o pontue contra o
 ```bash
 python lab_runtime.py predict --api \
   --input data/test.jsonl --output results/test_llm.jsonl
+python count_api_calls.py --predictions results/test_llm.jsonl
 unset LLM_API_KEY
 ```
 
-As chamadas de API podem ser cobradas pelo provedor. `--limit` permite um piloto, mas a comparação final deve utilizar o mesmo conjunto de IDs para todos. Para interromper e refazer uma execução, use outro arquivo de saída: o script impede sobrescrita acidental. Ele não retoma uma inferência parcial automaticamente.
+O BIRD Mini-Dev contém até 500 perguntas; o contador informa quantas são elegíveis depois do limite de contexto. Como referência de ritmo, a execução OpenAI do laboratório 04 processou cerca de 73 chamadas por minuto; 500 chamadas SQL levariam aproximadamente 7 minutos nesse ritmo, mas entradas SQL maiores ou a latência do serviço podem aumentar o tempo.
+
+Com `gpt-4.1-mini` (tarifa consultada em 12/10/2026: US$ 0,40 por milhão de tokens de entrada e US$ 1,60 por milhão de saída), uma conta conservadora para 500 casos, até 2.048 tokens de entrada e até 512 de saída por caso, fica abaixo de **US$ 0,82**. O custo real tende a ser menor e é reportado pelo contador depois da execução. `--limit` permite um piloto; a comparação final deve utilizar o mesmo conjunto de IDs para todos. Para repetir, use outro arquivo de saída: o script impede sobrescrita acidental e não retoma inferência parcial automaticamente.
 
 **Protocolo de comparação:** todos recebem a mesma informação no prompt e produzem uma resposta textual no contrato especificado. Este script não ativa o modo nativo de tool calling ou saídas estruturadas do provedor. Um LLM com suporte nativo pode obter outro resultado; essa configuração merece uma linha adicional na comparação de produção, com seu próprio cliente e adaptação de formato. Não apresente a condição de prompt uniforme como o melhor desempenho possível de cada plataforma.
 
@@ -392,7 +396,7 @@ O adaptador sozinho não é um modelo completo. Para reutilizá-lo, carregue a m
 
 ## 13. Referências primárias
 
-Fontes consultadas em 10/10/2026; preserve revisões e hashes dos pacotes utilizados.
+Fontes consultadas em 12/10/2026; preserve revisões e hashes dos pacotes utilizados.
 
 - [BIRD, conjunto de treino filtrado](https://huggingface.co/datasets/birdsql/bird23-train-filtered).
 - [BIRD, Mini-Dev e splits por dialeto](https://huggingface.co/datasets/birdsql/bird_mini_dev).
@@ -406,9 +410,10 @@ Fontes consultadas em 10/10/2026; preserve revisões e hashes dos pacotes utiliz
 - [PyTorch, instalações de versões anteriores](https://pytorch.org/get-started/previous-versions/).
 - [bitsandbytes 0.47, requisitos de instalação](https://huggingface.co/docs/bitsandbytes/v0.47.0/en/installation).
 - [Hugging Face Hub 0.34.4, autenticação e CLI](https://huggingface.co/docs/huggingface_hub/v0.34.4/en/guides/cli).
-- [OpenRouter, formato da API usado como exemplo de endpoint compatível](https://openrouter.ai/docs/api_reference/overview).
+- [OpenAI, endpoint Chat Completions](https://platform.openai.com/docs/api-reference/chat).
+- [OpenAI, modelo gpt-4.1-mini e preços](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
 
-Scripts auxiliares: [inspecionar_dados.py](scripts/lab02-sql/inspecionar_dados.py), [listar_checkpoints.py](scripts/lab02-sql/listar_checkpoints.py), [preparar_demo.py](scripts/lab02-sql/preparar_demo.py).
+Scripts auxiliares: [inspecionar_dados.py](scripts/lab02-sql/inspecionar_dados.py), [listar_checkpoints.py](scripts/lab02-sql/listar_checkpoints.py), [preparar_demo.py](scripts/lab02-sql/preparar_demo.py), [count_api_calls.py](scripts/lab02-sql/count_api_calls.py).
 
 ## Executar os comandos por script Bash
 

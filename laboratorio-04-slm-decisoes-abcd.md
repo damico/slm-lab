@@ -276,6 +276,8 @@ python count_api_calls.py
 
 O probe abaixo limita a validação às três primeiras linhas. Como linhas inelegíveis não geram requisição, o número pode ficar entre zero e três. O teste completo faz uma chamada para cada linha elegível de `data/test.jsonl`. O total real pode crescer se houver retries automáticos por erros HTTP temporários; o prompt inteiro de cada exemplo é enviado à OpenAI.
 
+**Referência de custo e duração observada nesta configuração:** no teste ABCD, `data/test.jsonl` tinha 13.152 linhas elegíveis. Em uma execução real com `gpt-4.1-mini`, 4.274 chamadas levaram 58min44s (cerca de 73 chamadas/minuto), com 3.244.944 tokens de entrada e 14.322 de saída reportados. Extrapolando a média para as 13.152 chamadas, a etapa completa levaria cerca de **3h** e custaria aproximadamente **US$ 4,06** pelas tarifas consultadas em 12/10/2026 (US$ 0,40/1M tokens de entrada e US$ 1,60/1M tokens de saída). O tempo varia com a latência da rede e o serviço; o custo varia com o tamanho dos prompts e retries. Para uma execução nova, use o contador e o uso reportado em `results/test_llm.jsonl`; a estimativa histórica não é uma cotação.
+
 Configure a URL, modelo e chave:
 
 ```bash
