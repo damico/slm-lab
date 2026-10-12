@@ -1,0 +1,94 @@
+---
+title: "Laboratório 01 · SLM especialista em chamadas de ferramentas (xLAM)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Arial, Helvetica, sans-serif"
+    fontSize: "15px"
+  flowchart:
+    curve: basis
+    nodeSpacing: 40
+    rankSpacing: 50
+---
+flowchart TB
+    classDef src fill:#eceff1,stroke:#546e7a,stroke-width:1.5px,color:#263238;
+    classDef data fill:#e1f5fe,stroke:#0288d1,stroke-width:1.5px,color:#01579b;
+    classDef gpu fill:#ede7f6,stroke:#5e35b1,stroke-width:1.5px,color:#311b92;
+    classDef model fill:#bbdefb,stroke:#1565c0,stroke-width:2.5px,color:#0d47a1;
+    classDef llm fill:#fce4ec,stroke:#ad1457,stroke-width:2px,color:#880e4f;
+    classDef out fill:#f1f8e9,stroke:#558b2f,stroke-width:1.5px,color:#33691e;
+    classDef warn fill:#fff8e1,stroke:#f9a825,stroke-width:1.5px,stroke-dasharray:4 3,color:#5d4037;
+
+    %% ---------- 1. PREPARAÇÃO ----------
+    subgraph P["① Preparação · prepare_tools.py"]
+        direction LR
+        HF[("Hugging Face<br/>Salesforce/xlam-function-calling-60k<br/>60 mil exemplos · 3.673 APIs")]:::src
+        TOK["Tokenizer Qwen3-1.7B<br/>mede prompt + reserva de 512"]:::src
+        SPLIT{"Divisão por<br/>catálogo completo<br/>(sem vazamento entre splits)"}:::data
+        TR["train.jsonl<br/>≈80% dos catálogos"]:::data
+        VA["validation.jsonl<br/>≈10%"]:::data
+        TE["test.jsonl<br/>≈10% · congelado"]:::data
+        EL["eligible=false<br/>prompt + 512 > 2.048 tokens<br/>→ context_exceeded (conta como falha)"]:::warn
+        HF --> SPLIT
+        TOK --> SPLIT
+        SPLIT --> TR & VA & TE
+        TE -.-> EL
+    end
+
+    %% ---------- 2. TREINO ----------
+    subgraph T["② Treino QLoRA · torchrun DDP · lab_runtime.py train"]
+        direction LR
+        BASE[("Qwen3-1.7B<br/>NF4 · congelado")]:::model
+        subgraph G["Duas RTX 3070 · memórias NÃO se somam"]
+            direction TB
+            G0["GPU 0 · rank 0<br/>cópia NF4 + LoRA r16"]:::gpu
+            G1["GPU 1 · rank 1<br/>cópia NF4 + LoRA r16"]:::gpu
+            G0 <-->|"sincroniza gradientes<br/>dos adaptadores"| G1
+        end
+        LOSS["Perda só na resposta<br/>prompt/padding = -100<br/>batch efetivo 1×8×2 = 16"]:::gpu
+        ADP[["final_adapter<br/>melhor eval_loss<br/>(avaliação a cada 100 passos)"]]:::model
+        BASE --> G0 & G1
+        G --- LOSS
+        LOSS --> ADP
+    end
+
+    %% ---------- 3. INFERÊNCIA ----------
+    subgraph I["③ Inferência no teste · mesmo prompt, mesmos IDs · lab_runtime.py predict"]
+        direction LR
+        EX["Entrada (messages)<br/>Pedido: 'Get current stock price for AAPL'<br/>Catálogo: #91;#123;name: stock_data_api, parameters: …#125;, …#93;"]:::data
+        C1["SLM original<br/>Qwen3-1.7B NF4<br/>1 GPU · greedy"]:::model
+        C2["SLM ajustado<br/>Qwen3-1.7B NF4 + LoRA<br/>1 GPU · greedy"]:::model
+        C3["LLM maior<br/>endpoint chat/completions<br/>--api"]:::llm
+        Y["Cada condição gera texto<br/>no contrato<br/>#91;#123;#quot;name#quot;: #quot;stock_data_api#quot;,<br/>#quot;arguments#quot;: #123;#quot;symbol#quot;: #quot;AAPL#quot;#125;#125;#93;"]:::out
+        EX --> C1 & C2 & C3
+        C1 & C2 & C3 --> Y
+    end
+
+    %% ---------- 4. AVALIAÇÃO ----------
+    subgraph A["④ Avaliação · score_tools.py + metrics.py"]
+        direction LR
+        SC["Comparação com o gabarito<br/>(funções NÃO são executadas)"]:::out
+        M1["Acerto funcional<br/>todas as chamadas + argumentos"]:::out
+        M2["schema_valid_rate<br/>tool_names_correct_rate<br/>unknown_tool_rate"]:::out
+        M3["IC Wilson 95%<br/>diferença pareada:<br/>base→ajustado · LLM→ajustado"]:::out
+        M4["Latência p50/p95 · VRAM<br/>custo por 1.000 solicitações"]:::out
+        SC --> M1 & M2
+        M1 --> M3
+        M2 --> M3
+        M3 --- M4
+    end
+
+    TR -->|treino| T
+    VA -.->|escolha de época/LR<br/>e checkpoint| T
+    TE --> EX
+    ADP -->|--adapter| C2
+    Y --> SC
+
+    APP["Aplicação integradora (fora do lab)<br/>valida nome e tipos → só então executa"]:::warn
+    Y -.-> APP
+
+    style P fill:#fafcff,stroke:#90a4ae,stroke-width:1px
+    style T fill:#fbf9ff,stroke:#9575cd,stroke-width:1px
+    style G fill:#f3effb,stroke:#b39ddb,stroke-width:1px
+    style I fill:#f7fbff,stroke:#64b5f6,stroke-width:1px
+    style A fill:#f9fcf5,stroke:#9ccc65,stroke-width:1px

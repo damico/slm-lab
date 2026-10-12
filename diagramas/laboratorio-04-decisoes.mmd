@@ -1,0 +1,122 @@
+---
+title: "Laboratório 04 · SLM especialista em decisões com ABCD"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Arial, Helvetica, sans-serif"
+    fontSize: "15px"
+  flowchart:
+    curve: basis
+    nodeSpacing: 40
+    rankSpacing: 50
+---
+flowchart TB
+    classDef src fill:#eceff1,stroke:#546e7a,stroke-width:1.5px,color:#263238;
+    classDef data fill:#e1f5fe,stroke:#0288d1,stroke-width:1.5px,color:#01579b;
+    classDef gpu fill:#ede7f6,stroke:#5e35b1,stroke-width:1.5px,color:#311b92;
+    classDef model fill:#bbdefb,stroke:#1565c0,stroke-width:2.5px,color:#0d47a1;
+    classDef llm fill:#fce4ec,stroke:#ad1457,stroke-width:2px,color:#880e4f;
+    classDef out fill:#f1f8e9,stroke:#558b2f,stroke-width:1.5px,color:#33691e;
+    classDef cal fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#e65100;
+    classDef warn fill:#fff8e1,stroke:#f9a825,stroke-width:1.5px,stroke-dasharray:4 3,color:#5d4037;
+
+    %% ---------- 1. PREPARAÇÃO ----------
+    subgraph P["① Preparação · prepare_abcd.py (revisão 6b8700c do ABCD)"]
+        direction LR
+        GH[("GitHub asappresearch/abcd<br/>abcd_v1.1.json.gz · ontology.json<br/>guidelines.json · LICENSE")]:::src
+        CONV["Conversor: exemplo emitido<br/>ANTES do turno-alvo<br/>(sem intenção, cenário nem targets)"]:::data
+        POL["guidelines.json → 255 trechos<br/>TF-IDF sobre as últimas mensagens<br/>orçamento de 400 tokens"]:::data
+        CTX["Contexto ≤ 2.048 tokens<br/>histórico + regras recuperadas<br/>eventos antigos saem → dropped_turns"]:::data
+        CLS["31 classes<br/>30 ações + retrieve_utterance<br/>(end_conversation não aparece nos dados)"]:::data
+        SPLIT{"Divisão por<br/>conversa inteira"}:::data
+        TR["train<br/>até 2.000 conversas do treino"]:::data
+        VA["validation<br/>502 conversas do dev"]:::data
+        CA["calibration<br/>251 conversas do dev"]:::data
+        SE["selection<br/>251 conversas do dev"]:::data
+        TE["test<br/>1.004 conversas · congelado<br/>+ 12 casos de demo"]:::data
+        GH --> CONV & POL
+        CONV --> CTX
+        POL --> CTX
+        GH --> CLS
+        CTX --> SPLIT
+        CLS --> SPLIT
+        SPLIT --> TR & VA & CA & SE & TE
+    end
+
+    %% ---------- 2. TREINO ----------
+    subgraph T["② Treino de classificação · torchrun DDP · decision_lab.py train"]
+        direction LR
+        BASE[("Qwen3ForSequenceClassification<br/>Qwen3-1.7B NF4 · congelado")]:::model
+        subgraph G["Duas RTX 3070 · memórias NÃO se somam"]
+            direction TB
+            G0["GPU 0 · rank 0<br/>NF4 + LoRA r16 + camada score"]:::gpu
+            G1["GPU 1 · rank 1<br/>NF4 + LoRA r16 + camada score"]:::gpu
+            G0 <-->|"sincroniza gradientes<br/>LoRA + score"| G1
+        end
+        LOSS["Camada score → 31 logits<br/>entropia cruzada no rótulo<br/>batch efetivo 16 · 2 épocas"]:::gpu
+        ADP[["final_adapter<br/>LoRA + score (modules_to_save)<br/>avaliação a cada 100 passos"]]:::model
+        BL[["Referência barata<br/>TF-IDF + regressão logística<br/>decision_lab.py baseline"]]:::src
+        BASE --> G0 & G1
+        G --- LOSS
+        LOSS --> ADP
+    end
+
+    %% ---------- 3. CALIBRAÇÃO ----------
+    subgraph C["③ Calibração · evaluate_decisions.py calibrate / select"]
+        direction LR
+        TEMP["calibrate<br/>ajusta T minimizando NLL<br/>softmax(logits / T)<br/>→ temperature.json"]:::cal
+        THR["select<br/>maior cobertura com erro ≤ 10%<br/>e ≥ 100 decisões<br/>→ decision_policy.json"]:::cal
+        TEMP --> THR
+    end
+
+    %% ---------- 4. COMPARAÇÃO ----------
+    subgraph I["④ Comparação no teste · mesmos históricos e regras · decision_lab.py predict"]
+        direction LR
+        EX["Entrada<br/>histórico anterior + trechos de regras"]:::data
+        B0["TF-IDF + regressão logística<br/>--backend tfidf"]:::src
+        B1["Qwen3-1.7B original<br/>cabeça de linguagem + prompt<br/>--backend base"]:::model
+        B2["Especialista<br/>NF4 + LoRA + score<br/>--backend classifier"]:::model
+        B3["LLM maior<br/>ex.: Qwen3-32B · só o rótulo<br/>--backend api"]:::llm
+        SC["evaluate_decisions.py score<br/>accuracy_all · macro_f1<br/>action_only_accuracy · per_class"]:::out
+        PR["Só o especialista tem probabilidades:<br/>NLL · Brier · ECE<br/>coverage_all · selected_error"]:::out
+        BS["compare: bootstrap pareado<br/>reamostrando conversas inteiras"]:::out
+        EX --> B0 & B1 & B2 & B3
+        B0 & B1 & B2 & B3 --> SC
+        B2 --> PR
+        SC --> BS
+    end
+
+    %% ---------- 5. SERVIÇO ----------
+    subgraph S["⑤ Serviço local · serve_decisions.py · POST 127.0.0.1:8084/decide"]
+        direction LR
+        REQ["Pedido JSON<br/>#123;#quot;history#quot;: #91;#123;#quot;role#quot;: #quot;customer#quot;,<br/>#quot;text#quot;: #quot;I want to return a shirt…#quot;#125;, …#93;#125;"]:::data
+        RET["Recupera regras (TF-IDF)<br/>monta janela de contexto"]:::data
+        MOD["Especialista<br/>31 logits"]:::model
+        SM["softmax(logits / T)"]:::cal
+        LIM{"confiança<br/>≥ limiar?"}:::cal
+        RESP["Resposta JSON<br/>choice · probabilities · confidence<br/>requires_review (booleano)<br/>policy_ids · dropped_turns"]:::out
+        REQ --> RET --> MOD --> SM --> LIM --> RESP
+    end
+
+    TR -->|treino| T
+    TR -->|treino| BL
+    VA -.->|checkpoint e<br/>hiperparâmetros| T
+    ADP --> TEMP
+    CA -->|logits| TEMP
+    SE -->|logits| THR
+    TE --> EX
+    ADP -->|--artifact| B2
+    BL -->|--artifact| B0
+    THR -->|--calibration| PR
+    ADP -->|--adapter| MOD
+    THR -->|--calibration| SM
+
+    APP["Aplicação integradora (fora do lab)<br/>executa a ação, preenche argumentos e autoriza<br/>retrieve_utterance = atendente conversa ou coleta dados"]:::warn
+    RESP -.-> APP
+
+    style P fill:#fafcff,stroke:#90a4ae,stroke-width:1px
+    style T fill:#fbf9ff,stroke:#9575cd,stroke-width:1px
+    style G fill:#f3effb,stroke:#b39ddb,stroke-width:1px
+    style C fill:#fffaf3,stroke:#ffb74d,stroke-width:1px
+    style I fill:#f7fbff,stroke:#64b5f6,stroke-width:1px
+    style S fill:#f9fcf5,stroke:#9ccc65,stroke-width:1px

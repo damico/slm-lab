@@ -1,0 +1,120 @@
+---
+title: "Laboratório 03 · SLM especialista em extração de recibos (SROIE)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Arial, Helvetica, sans-serif"
+    fontSize: "15px"
+  flowchart:
+    curve: basis
+    nodeSpacing: 40
+    rankSpacing: 50
+---
+flowchart TB
+    classDef src fill:#eceff1,stroke:#546e7a,stroke-width:1.5px,color:#263238;
+    classDef data fill:#e1f5fe,stroke:#0288d1,stroke-width:1.5px,color:#01579b;
+    classDef gpu fill:#ede7f6,stroke:#5e35b1,stroke-width:1.5px,color:#311b92;
+    classDef model fill:#bbdefb,stroke:#1565c0,stroke-width:2.5px,color:#0d47a1;
+    classDef llm fill:#fce4ec,stroke:#ad1457,stroke-width:2px,color:#880e4f;
+    classDef out fill:#f1f8e9,stroke:#558b2f,stroke-width:1.5px,color:#33691e;
+    classDef ocr fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#e65100;
+    classDef warn fill:#fff8e1,stroke:#f9a825,stroke-width:1.5px,stroke-dasharray:4 3,color:#5d4037;
+
+    %% ---------- 1. PREPARAÇÃO ----------
+    subgraph P["① Preparação · prepare_receipts.py (sem anotação manual)"]
+        direction LR
+        HF[("Hugging Face<br/>jsdnrs/ICDAR2019-SROIE<br/>626 treino · 361 teste<br/>imagens + 4 campos anotados")]:::src
+        OCR["Tesseract OCR em CPU<br/>--lang eng · --psm 6<br/>com cache"]:::ocr
+        DED["Remove duplicatas<br/>de imagem/transcrição<br/>entre treino e teste"]:::data
+        TR["train.jsonl<br/>≈90% do treino original"]:::data
+        VA["validation.jsonl<br/>≈10% do treino original"]:::data
+        TE["test.jsonl<br/>teste original · congelado"]:::data
+        DM["demo_images/<br/>10 imagens do teste<br/>escolhidas por ID"]:::data
+        TX["--mode transcript<br/>transcrição do dataset<br/>→ experimento separado"]:::warn
+        HF --> OCR --> DED
+        DED --> TR & VA & TE
+        TE -.-> DM
+        HF -.-> TX
+    end
+
+    %% ---------- 2. TREINO ----------
+    subgraph T["② Treino QLoRA · torchrun DDP · lab_runtime.py train"]
+        direction LR
+        BASE[("Qwen3-1.7B<br/>NF4 · congelado<br/>(o OCR não é treinado)")]:::model
+        subgraph G["Duas RTX 3070 · memórias NÃO se somam"]
+            direction TB
+            G0["GPU 0 · rank 0<br/>cópia NF4 + LoRA r16 · α32"]:::gpu
+            G1["GPU 1 · rank 1<br/>cópia NF4 + LoRA r16 · α32"]:::gpu
+            G0 <-->|"sincroniza gradientes<br/>dos adaptadores"| G1
+        end
+        LOSS["Perda só no JSON de resposta<br/>prompt/padding = -100<br/>batch efetivo 16 · 3 épocas"]:::gpu
+        ADP[["final_adapter<br/>melhor eval_loss<br/>(avaliação a cada 20 passos)"]]:::model
+        BASE --> G0 & G1
+        G --- LOSS
+        LOSS --> ADP
+    end
+
+    %% ---------- 3. INFERÊNCIA ----------
+    subgraph I["③ Benchmark no teste · mesmo texto OCR · lab_runtime.py predict"]
+        direction LR
+        EX["Entrada (messages)<br/>texto OCR do recibo + instruções<br/>sem gabarito nem nome do arquivo"]:::data
+        C1["SLM original<br/>Qwen3-1.7B NF4<br/>1 GPU · greedy"]:::model
+        C2["SLM ajustado<br/>Qwen3-1.7B NF4 + LoRA<br/>1 GPU · greedy"]:::model
+        C3["LLM maior<br/>ex.: Qwen3-32B em endpoint<br/>sem thinking · --api"]:::llm
+        Y["Cada condição gera JSON (texto)<br/>#123;#quot;company#quot;: #quot;DEMO SUPPLIES LTD#quot;,<br/>#quot;date#quot;: #quot;08/10/2026#quot;,<br/>#quot;address#quot;: #quot;10 DEMO ROAD#quot;,<br/>#quot;total#quot;: #quot;89.90#quot;#125;"]:::out
+        EX --> C1 & C2 & C3
+        C1 & C2 & C3 --> Y
+    end
+
+    %% ---------- 4. AVALIAÇÃO ----------
+    subgraph A["④ Avaliação · score_receipts.py + metrics.py"]
+        direction LR
+        SC["JSON puro · exatamente 4 chaves<br/>valores string ou null<br/>normaliza Unicode, caixa e espaços"]:::out
+        M1["Métrica principal:<br/>documentos com os 4 campos corretos<br/>accuracy_all_valid · accuracy_eligible"]:::out
+        M2["field_accuracy · schema_valid_rate<br/>merchant_groups<br/>(fornecedor visto / não visto)"]:::out
+        M3["Bootstrap pareado B − A · IC 95%<br/>original→ajustado · LLM→ajustado"]:::out
+        M4["Latência p50/p95 · VRAM<br/>tokens e custo da API"]:::out
+        SC --> M1 & M2
+        M1 --> M3
+        M2 --> M3
+        M3 --- M4
+    end
+
+    %% ---------- 5. APLICAÇÃO ----------
+    subgraph X["⑤ Aplicação local · extract_receipts.py (um recibo por arquivo)"]
+        direction LR
+        IN["Arquivo ou pasta"]:::src
+        R{"Tipo de<br/>arquivo"}:::data
+        IMG["Imagem → Tesseract"]:::ocr
+        PDT["PDF 1 página com texto<br/>→ pdftotext"]:::ocr
+        PSC["PDF digitalizado ou --force-ocr<br/>→ renderiza página + Tesseract"]:::ocr
+        TXT[".txt → texto direto"]:::ocr
+        REJ["PDF com várias páginas<br/>→ rejeitado"]:::warn
+        MOD["Qwen3-1.7B NF4<br/>+ final_adapter<br/>carregado uma vez por lote"]:::model
+        O1["resultados.jsonl<br/>campos · saída bruta · status · hash"]:::out
+        O2["despesas.csv<br/>uma linha por recibo<br/>protegido contra fórmulas"]:::out
+        O3["textos/<br/>texto recebido pelo modelo"]:::out
+        IN --> R
+        R --> IMG & PDT & PSC & TXT
+        R -.-> REJ
+        IMG & PDT & PSC & TXT --> MOD
+        MOD --> O1 & O2 & O3
+    end
+
+    TR -->|treino| T
+    VA -.->|escolha de época/LR<br/>e checkpoint| T
+    TE --> EX
+    ADP -->|--adapter| C2
+    Y --> SC
+    ADP -->|--adapter| MOD
+    DM -.->|demonstração| IN
+
+    NOTE["status schema_valid ≠ aprovação da despesa<br/>recibos da Malásia em inglês: não valida NF-e/NFC-e"]:::warn
+    O2 -.-> NOTE
+
+    style P fill:#fafcff,stroke:#90a4ae,stroke-width:1px
+    style T fill:#fbf9ff,stroke:#9575cd,stroke-width:1px
+    style G fill:#f3effb,stroke:#b39ddb,stroke-width:1px
+    style I fill:#f7fbff,stroke:#64b5f6,stroke-width:1px
+    style A fill:#f9fcf5,stroke:#9ccc65,stroke-width:1px
+    style X fill:#fffaf3,stroke:#ffb74d,stroke-width:1px

@@ -1,0 +1,103 @@
+---
+title: "Laboratório 02 · SLM especialista em consultas SQL (BIRD)"
+config:
+  theme: base
+  themeVariables:
+    fontFamily: "Arial, Helvetica, sans-serif"
+    fontSize: "15px"
+  flowchart:
+    curve: basis
+    nodeSpacing: 40
+    rankSpacing: 50
+---
+flowchart TB
+    classDef src fill:#eceff1,stroke:#546e7a,stroke-width:1.5px,color:#263238;
+    classDef data fill:#e1f5fe,stroke:#0288d1,stroke-width:1.5px,color:#01579b;
+    classDef gpu fill:#ede7f6,stroke:#5e35b1,stroke-width:1.5px,color:#311b92;
+    classDef model fill:#bbdefb,stroke:#1565c0,stroke-width:2.5px,color:#0d47a1;
+    classDef llm fill:#fce4ec,stroke:#ad1457,stroke-width:2px,color:#880e4f;
+    classDef out fill:#f1f8e9,stroke:#558b2f,stroke-width:1.5px,color:#33691e;
+    classDef db fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,color:#e65100;
+    classDef warn fill:#fff8e1,stroke:#f9a825,stroke-width:1.5px,stroke-dasharray:4 3,color:#5d4037;
+
+    %% ---------- 1. PREPARAÇÃO ----------
+    subgraph P["① Preparação · extract_archives.py + prepare_sql.py"]
+        direction LR
+        ZT[("train.zip<br/>bancos SQLite de treino")]:::src
+        ZM[("bird_mini.zip<br/>bancos SQLite do Mini-Dev")]:::src
+        HF[("Hugging Face<br/>bird23-train-filtered · 6.601 exemplos<br/>bird_mini_dev · mini_dev_sqlite · 500")]:::src
+        EXT["extract_archives.py<br/>ZIPs internos · ignora __MACOSX<br/>destino vazio"]:::data
+        SCH["Esquema compacto<br/>tabelas · tipos · PK · FK<br/>(sem usar o SQL correto)"]:::data
+        SPLIT{"Divisão por<br/>banco de dados"}:::data
+        TR["train.jsonl<br/>≈90% dos bancos de treino"]:::data
+        VA["validation.jsonl<br/>≈10% dos bancos de treino"]:::data
+        TE["test.jsonl<br/>Mini-Dev · 500 perguntas<br/>bancos disjuntos do treino"]:::data
+        EL["eligible=false<br/>esquema grande demais<br/>→ context_exceeded (conta como falha)"]:::warn
+        ZT & ZM --> EXT --> SCH
+        HF --> SPLIT
+        SCH --> SPLIT
+        SPLIT --> TR & VA & TE
+        TE -.-> EL
+    end
+
+    %% ---------- 2. TREINO ----------
+    subgraph T["② Treino QLoRA · torchrun DDP · lab_runtime.py train"]
+        direction LR
+        BASE[("Qwen3-1.7B<br/>NF4 · congelado")]:::model
+        subgraph G["Duas RTX 3070 · memórias NÃO se somam"]
+            direction TB
+            G0["GPU 0 · rank 0<br/>cópia NF4 + LoRA r16"]:::gpu
+            G1["GPU 1 · rank 1<br/>cópia NF4 + LoRA r16"]:::gpu
+            G0 <-->|"sincroniza gradientes<br/>dos adaptadores"| G1
+        end
+        LOSS["Perda só no SQL de resposta<br/>prompt/padding = -100<br/>batch efetivo 1×8×2 = 16 · 2 épocas"]:::gpu
+        ADP[["final_adapter<br/>melhor eval_loss<br/>(avaliação a cada 100 passos)"]]:::model
+        BASE --> G0 & G1
+        G --- LOSS
+        LOSS --> ADP
+    end
+
+    %% ---------- 3. INFERÊNCIA ----------
+    subgraph I["③ Inferência no teste · mesmo prompt, mesmos IDs · lab_runtime.py predict"]
+        direction LR
+        EX["Entrada (messages)<br/>Esquema: employees(id, name, department, …)<br/>Pergunta: 'Names of employees in HR'<br/>Evidence: fornecida a todos os modelos"]:::data
+        C1["SLM original<br/>Qwen3-1.7B NF4<br/>1 GPU · greedy"]:::model
+        C2["SLM ajustado<br/>Qwen3-1.7B NF4 + LoRA<br/>1 GPU · greedy"]:::model
+        C3["LLM maior<br/>endpoint chat/completions<br/>--api"]:::llm
+        Y["Cada condição gera SQL (texto)<br/>SELECT name FROM employees<br/>WHERE department = 'HR'"]:::out
+        EX --> C1 & C2 & C3
+        C1 & C2 & C3 --> Y
+    end
+
+    %% ---------- 4. AVALIAÇÃO ----------
+    subgraph A["④ Avaliação por execução · score_sql.py + metrics.py"]
+        direction LR
+        RO[("Executor SQLite somente leitura<br/>mode=ro · query_only · autorizador<br/>timeout 15 s · limite de linhas")]:::db
+        GOLD["SQL de referência<br/>executado no mesmo banco"]:::data
+        CMP["Compara linhas retornadas<br/>(o texto do SQL pode diferir)"]:::out
+        M1["accuracy_eligible (EX-set)<br/>ex_bag · execution_rate"]:::out
+        M2["by_difficulty · gold_empty_n<br/>reference_valid=false<br/>fica fora do denominador"]:::out
+        M3["IC Wilson 95%<br/>diferença pareada:<br/>base→ajustado · LLM→ajustado"]:::out
+        M4["Latência p50/p95 · VRAM<br/>custo por 1.000 solicitações"]:::out
+        RO --> CMP
+        GOLD --> CMP
+        CMP --> M1 & M2
+        M1 --> M3
+        M2 --> M3
+        M3 --- M4
+    end
+
+    TR -->|treino| T
+    VA -.->|escolha de época/LR<br/>e checkpoint| T
+    TE --> EX
+    ADP -->|--adapter| C2
+    Y --> RO
+
+    APP["Fora do lab: PostgreSQL (mini_dev_pg) e InfiniteStack<br/>schemas autorizados · usuário somente leitura · outro experimento"]:::warn
+    Y -.-> APP
+
+    style P fill:#fafcff,stroke:#90a4ae,stroke-width:1px
+    style T fill:#fbf9ff,stroke:#9575cd,stroke-width:1px
+    style G fill:#f3effb,stroke:#b39ddb,stroke-width:1px
+    style I fill:#f7fbff,stroke:#64b5f6,stroke-width:1px
+    style A fill:#f9fcf5,stroke:#9ccc65,stroke-width:1px
