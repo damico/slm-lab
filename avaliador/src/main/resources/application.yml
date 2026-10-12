@@ -1,0 +1,24 @@
+server:
+  port: ${AVALIADOR_PORT:8080}
+spring:
+  application:
+    name: slm-lab-avaliador
+  jackson:
+    default-property-inclusion: non_null
+    deserialization:
+      fail-on-unknown-properties: true
+  mvc:
+    async:
+      request-timeout: 180000
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+avaliador:
+  inference-url: ${LAB04_API_URL:http://127.0.0.1:8084}
+  openai-api-key: ${OPENAI_API_KEY:}
+  openai-model: ${OPENAI_MODEL:gpt-4.1-mini}
+  openai-base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+  input-price-per-million: ${OPENAI_INPUT_PRICE:0.40}
+  output-price-per-million: ${OPENAI_OUTPUT_PRICE:1.60}

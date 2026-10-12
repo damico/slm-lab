@@ -341,6 +341,8 @@ A API reportou 9.931.657 tokens de entrada e 44.131 de saída. Com as tarifas co
 
 ## 11. Usar a CLI e a API local
 
+Para experimentar pelo navegador com timeline, probabilidades e regras recuperadas, use o [avaliador web](avaliador/README.md). Ele utiliza o mesmo adaptador e a mesma calibração desta seção, com comparação OpenAI opcional. O README inclui os dois comandos de inicialização e a configuração das portas.
+
 A preparação separa doze entradas de teste para demonstração, pela ordem do arquivo e antes de conhecer os acertos. Os JSONs de entrada não contêm o gabarito. Os rótulos esperados ficam em `data/demo_expected.json` para conferência.
 
 ```bash

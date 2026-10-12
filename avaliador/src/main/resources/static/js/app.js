@@ -1,0 +1,35 @@
+(() => {
+  const root = document.documentElement;
+  document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    root.dataset.bsTheme = root.dataset.bsTheme === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('slm-theme', root.dataset.bsTheme); } catch (_) {}
+    window.dispatchEvent(new CustomEvent('slm-theme-change'));
+  });
+  async function refreshStatus() {
+    try {
+      const response = await fetch('/api/status', {signal: AbortSignal.timeout(7000)});
+      if (!response.ok) throw new Error('status');
+      window.labStatus = await response.json();
+    } catch (_) { window.labStatus = {available:false, comparison_enabled:false}; }
+    document.querySelectorAll('[data-api-status]').forEach(el => {
+      el.textContent = window.labStatus.available ? 'Lab 04 / modelo conectado' : 'Lab 04 / API offline';
+    });
+    document.querySelectorAll('[data-status-dot]').forEach(el => el.classList.toggle('ready', window.labStatus.available));
+    window.dispatchEvent(new CustomEvent('slm-status', {detail:window.labStatus}));
+  }
+  refreshStatus();
+  setInterval(refreshStatus, 30000);
+  const canvas = document.getElementById('benchmark-chart');
+  if (canvas && window.Chart) {
+    const colors = ['#b297ff','#b7f66a','#64606e','#ede0a4'];
+    const chart = new Chart(canvas, {
+      type:'bar', data:{labels:['SLM especializado','TF-IDF','Qwen base','OpenAI mini'],
+        datasets:[{data:[85.45,75.87,65.13,55.37],backgroundColor:colors,borderRadius:7,barThickness:32}]},
+      options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',animation:{duration:650},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.parsed.x.toLocaleString('pt-BR')}%`}}},
+        scales:{x:{min:0,max:100,ticks:{color:'#9395a4',font:{size:10},callback:v=>v+'%'},grid:{color:'#85859718'},border:{display:false}},
+          y:{ticks:{color:'#9395a4',font:{size:11}},grid:{display:false},border:{display:false}}}}
+    });
+    window.addEventListener('slm-theme-change', () => chart.update());
+  }
+})();

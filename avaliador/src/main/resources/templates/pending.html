@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<head><title th:text="${lab.title}">Laboratório</title></head>
+<body><main layout:fragment="content">
+<div class="page-heading"><div><p class="eyebrow" th:text="'LABORATÓRIO ' + ${lab.id} + ' / ' + ${lab.category}">Laboratório</p><h1 th:text="${lab.title}">Ferramentas</h1><p class="subtitle" th:text="${lab.description}">Descrição</p></div><span class="pill yellow">Em preparação</span></div>
+<div class="panel pending-notice"><div class="lab-icon"><svg class="icon"><use href="#i-code"/></svg></div><div><h2>O próximo experimento começa pelo treino.</h2><p>Este laboratório terá inferência interativa quando seu adaptador e serviço estiverem disponíveis. Você já pode consultar o roteiro e explorar a integração funcional de decisões.</p><a class="btn btn-accent" th:href="@{/docs/{id}(id=${lab.id})}" target="_blank">Abrir roteiro <svg class="icon"><use href="#i-book"/></svg></a><a class="btn btn-outline-secondary ms-2" th:href="@{/labs/04}">Testar Lab 04</a></div></div>
+<section class="panel flow-panel"><span class="eyebrow">COMO FUNCIONA</span><div class="flow" th:each="step, iter : ${lab.steps}"><span class="step-number" th:text="${iter.count}">1</span><h3 th:text="${step}">Etapa</h3><svg th:if="${!iter.last}" class="icon"><use href="#i-arrow"/></svg></div></section>
+<section class="panel preview-panel"><div class="panel-heading"><div><h2>Área de experimentação</h2><p>Prévia dos campos / inferência ainda indisponível</p></div><span class="pill subtle" th:text="${lab.dataset}">Dataset</span></div>
+<fieldset disabled th:switch="${lab.id}">
+<div th:case="'01'"><label class="form-label" for="tools-request">Solicitação</label><textarea id="tools-request" class="form-control" rows="2" placeholder="Consulte a previsão do tempo e envie um resumo."></textarea><label class="form-label mt-3" for="tools-catalog">Catálogo de ferramentas (JSON)</label><textarea id="tools-catalog" class="form-control code" rows="3" placeholder='[{"name":"get_weather","parameters":{...}}]'></textarea></div>
+<div th:case="'02'"><label class="form-label" for="sql-request">Pergunta</label><input id="sql-request" class="form-control" placeholder="Quais produtos venderam mais no trimestre?"><label class="form-label mt-3" for="sql-schema">Esquema e evidence</label><textarea id="sql-schema" class="form-control code" rows="4" placeholder="Tabelas, colunas, relações e evidências do BIRD"></textarea></div>
+<div th:case="'03'"><label class="form-label" for="receipt-upload">Imagem ou PDF do recibo</label><input id="receipt-upload" type="file" class="form-control" accept="image/*,.pdf"><label class="form-label mt-3" for="receipt-text">Texto do OCR</label><textarea id="receipt-text" class="form-control code" rows="4" placeholder="Texto extraído pelo Tesseract"></textarea><p class="small muted mt-3">O modelo recebe texto depois do OCR.</p></div>
+<button class="btn btn-secondary mt-4" type="button">Inferência em preparação</button>
+</fieldset></section>
+</main></body></html>

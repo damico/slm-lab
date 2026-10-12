@@ -1,0 +1,6 @@
+**
+!avaliador/
+!avaliador/pom.xml
+!avaliador/src/
+!avaliador/src/**
+!laboratorio-*.md
