@@ -22,21 +22,21 @@ HELP
 }
 list_steps() {
     cat <<'STEPS'
-01 — 3. Ambiente e memória
-02 — 3. Ambiente e memória
-03 — 3. Ambiente e memória
-04 — 4. Copiar os scripts do laboratório
-05 — 5. Preparar os dados sem anotar exemplos
-06 — 5. Preparar os dados sem anotar exemplos
-07 — 6. Treinar nas duas RTX 3070
-08 — 6. Treinar nas duas RTX 3070
-09 — 7. Validar antes de abrir o teste
-10 — 8. Comparação objetiva: original, especialista e LLM maior
-11 — 8. Comparação objetiva: original, especialista e LLM maior
-12 — 8. Comparação objetiva: original, especialista e LLM maior
-13 — 9. Usar a aplicação de verdade
-14 — 9. Usar a aplicação de verdade
-15 — 9. Usar a aplicação de verdade
+01 - 3. Ambiente e memória
+02 - 3. Ambiente e memória
+03 - 3. Ambiente e memória
+04 - 4. Copiar os scripts do laboratório
+05 - 5. Preparar os dados sem anotar exemplos
+06 - 5. Preparar os dados sem anotar exemplos
+07 - 6. Treinar nas duas RTX 3070
+08 - 6. Treinar nas duas RTX 3070
+09 - 7. Validar antes de abrir o teste
+10 - 8. Comparação objetiva: original, especialista e LLM maior
+11 - 8. Comparação objetiva: original, especialista e LLM maior
+12 - 8. Comparação objetiva: original, especialista e LLM maior
+13 - 9. Usar a aplicação de verdade
+14 - 9. Usar a aplicação de verdade
+15 - 9. Usar a aplicação de verdade
 STEPS
 }
 
@@ -249,6 +249,6 @@ fi
 export TOKENIZERS_PARALLELISM=false
 export OMP_THREAD_LIMIT=1
 for LAB_STEP in "${LAB_SELECTED_STEPS[@]}"; do
-    echo "=== Etapa $LAB_STEP — $(date --iso-8601=seconds) ==="
+    echo "=== Etapa $LAB_STEP - $(date --iso-8601=seconds) ==="
     "etapa_$LAB_STEP"
 done

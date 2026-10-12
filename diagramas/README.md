@@ -4,10 +4,10 @@ Cada laboratório tem um fonte Mermaid (`.mmd`) e a imagem renderizada (`.png`).
 
 | Laboratório | Fonte | Imagem |
 |---|---|---|
-| 01 — Ferramentas (xLAM) | [laboratorio-01-ferramentas.mmd](laboratorio-01-ferramentas.mmd) | [PNG](laboratorio-01-ferramentas.png) |
-| 02 — SQL (BIRD) | [laboratorio-02-sql.mmd](laboratorio-02-sql.mmd) | [PNG](laboratorio-02-sql.png) |
-| 03 — Recibos (SROIE) | [laboratorio-03-recibos.mmd](laboratorio-03-recibos.mmd) | [PNG](laboratorio-03-recibos.png) |
-| 04 — Decisões (ABCD) | [laboratorio-04-decisoes.mmd](laboratorio-04-decisoes.mmd) | [PNG](laboratorio-04-decisoes.png) |
+| 01 - Ferramentas (xLAM) | [laboratorio-01-ferramentas.mmd](laboratorio-01-ferramentas.mmd) | [PNG](laboratorio-01-ferramentas.png) |
+| 02 - SQL (BIRD) | [laboratorio-02-sql.mmd](laboratorio-02-sql.mmd) | [PNG](laboratorio-02-sql.png) |
+| 03 - Recibos (SROIE) | [laboratorio-03-recibos.mmd](laboratorio-03-recibos.mmd) | [PNG](laboratorio-03-recibos.png) |
+| 04 - Decisões (ABCD) | [laboratorio-04-decisoes.mmd](laboratorio-04-decisoes.mmd) | [PNG](laboratorio-04-decisoes.png) |
 
 Edite o `.mmd` e gere a imagem novamente com o Mermaid CLI. Os diagramas 03 e 04 são mais largos e usam `-w 2000`:
 

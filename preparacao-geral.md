@@ -75,10 +75,10 @@ Depois, entre na pasta do laboratório e siga seu roteiro:
 
 | Laboratório | Roteiro |
 |---|---|
-| 01 — Ferramentas | [SLM e xLAM](laboratorio-01-slm-ferramentas-xlam.md) |
-| 02 — SQL | [SLM e BIRD](laboratorio-02-slm-sql-bird.md) |
-| 03 — Recibos | [Extração de recibos](laboratorio-03-slm-extracao-recibos.md) |
-| 04 — Decisões | [Decisões com ABCD](laboratorio-04-slm-decisoes-abcd.md) |
+| 01 - Ferramentas | [SLM e xLAM](laboratorio-01-slm-ferramentas-xlam.md) |
+| 02 - SQL | [SLM e BIRD](laboratorio-02-slm-sql-bird.md) |
+| 03 - Recibos | [Extração de recibos](laboratorio-03-slm-extracao-recibos.md) |
+| 04 - Decisões | [Decisões com ABCD](laboratorio-04-slm-decisoes-abcd.md) |
 
 Para continuar o laboratório 04 que você já iniciou:
 

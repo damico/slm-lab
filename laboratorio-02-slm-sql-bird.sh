@@ -22,25 +22,25 @@ HELP
 }
 list_steps() {
     cat <<'STEPS'
-01 — 1. Resultado que você construirá
-02 — 2. Ambiente: Ubuntu e duas RTX 3070 de 8 GB
-03 — 2. Ambiente: Ubuntu e duas RTX 3070 de 8 GB
-04 — 2. Ambiente: Ubuntu e duas RTX 3070 de 8 GB
-05 — 3. Como executar os scripts deste documento
-06 — 4. Baixar os exemplos e os bancos
-07 — 4. Baixar os exemplos e os bancos
-08 — 4. Baixar os exemplos e os bancos
-09 — 6. Verificar memória e treinar
-10 — 6. Verificar memória e treinar
-11 — 6. Verificar memória e treinar
-12 — 6. Verificar memória e treinar
-13 — 7. Comparar o modelo original, o ajustado e um LLM maior
-14 — 7. Comparar o modelo original, o ajustado e um LLM maior
-15 — 7. Comparar o modelo original, o ajustado e um LLM maior
-16 — 7. Comparar o modelo original, o ajustado e um LLM maior
-17 — 7. Comparar o modelo original, o ajustado e um LLM maior
-18 — 8. Avaliar executando as consultas
-19 — 8. Avaliar executando as consultas
+01 - 1. Resultado que você construirá
+02 - 2. Ambiente: Ubuntu e duas RTX 3070 de 8 GB
+03 - 2. Ambiente: Ubuntu e duas RTX 3070 de 8 GB
+04 - 2. Ambiente: Ubuntu e duas RTX 3070 de 8 GB
+05 - 3. Como executar os scripts deste documento
+06 - 4. Baixar os exemplos e os bancos
+07 - 4. Baixar os exemplos e os bancos
+08 - 4. Baixar os exemplos e os bancos
+09 - 6. Verificar memória e treinar
+10 - 6. Verificar memória e treinar
+11 - 6. Verificar memória e treinar
+12 - 6. Verificar memória e treinar
+13 - 7. Comparar o modelo original, o ajustado e um LLM maior
+14 - 7. Comparar o modelo original, o ajustado e um LLM maior
+15 - 7. Comparar o modelo original, o ajustado e um LLM maior
+16 - 7. Comparar o modelo original, o ajustado e um LLM maior
+17 - 7. Comparar o modelo original, o ajustado e um LLM maior
+18 - 8. Avaliar executando as consultas
+19 - 8. Avaliar executando as consultas
 STEPS
 }
 
@@ -266,6 +266,6 @@ fi
 export TOKENIZERS_PARALLELISM=false
 export OMP_THREAD_LIMIT=1
 for LAB_STEP in "${LAB_SELECTED_STEPS[@]}"; do
-    echo "=== Etapa $LAB_STEP — $(date --iso-8601=seconds) ==="
+    echo "=== Etapa $LAB_STEP - $(date --iso-8601=seconds) ==="
     "etapa_$LAB_STEP"
 done

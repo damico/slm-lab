@@ -22,26 +22,26 @@ HELP
 }
 list_steps() {
     cat <<'STEPS'
-01 — 4. Preparar o ambiente nas duas placas de 8 GB
-02 — 4. Preparar o ambiente nas duas placas de 8 GB
-03 — 4. Preparar o ambiente nas duas placas de 8 GB
-04 — 5. Copiar os scripts do laboratório
-05 — 6. Baixar e preparar os dados
-06 — 6. Baixar e preparar os dados
-07 — 6. Baixar e preparar os dados
-08 — 7. Teste curto e treinamento
-09 — 7. Teste curto e treinamento
-10 — 8. Validar o especialista e treinar uma referência simples
-11 — 8. Validar o especialista e treinar uma referência simples
-12 — 9. Calibrar probabilidades e escolher quando revisar
-13 — 9. Calibrar probabilidades e escolher quando revisar
-14 — 10. Comparar com o modelo original e um LLM maior
-15 — 10. Comparar com o modelo original e um LLM maior
-16 — 10. Comparar com o modelo original e um LLM maior
-17 — 11. Usar a CLI e a API local
-18 — 11. Usar a CLI e a API local
-19 — 11. Usar a CLI e a API local
-20 — 11. Usar a CLI e a API local
+01 - 4. Preparar o ambiente nas duas placas de 8 GB
+02 - 4. Preparar o ambiente nas duas placas de 8 GB
+03 - 4. Preparar o ambiente nas duas placas de 8 GB
+04 - 5. Copiar os scripts do laboratório
+05 - 6. Baixar e preparar os dados
+06 - 6. Baixar e preparar os dados
+07 - 6. Baixar e preparar os dados
+08 - 7. Teste curto e treinamento
+09 - 7. Teste curto e treinamento
+10 - 8. Validar o especialista e treinar uma referência simples
+11 - 8. Validar o especialista e treinar uma referência simples
+12 - 9. Calibrar probabilidades e escolher quando revisar
+13 - 9. Calibrar probabilidades e escolher quando revisar
+14 - 10. Comparar com o modelo original e um LLM maior
+15 - 10. Comparar com o modelo original e um LLM maior
+16 - 10. Comparar com o modelo original e um LLM maior
+17 - 11. Usar a CLI e a API local
+18 - 11. Usar a CLI e a API local
+19 - 11. Usar a CLI e a API local
+20 - 11. Usar a CLI e a API local
 STEPS
 }
 
@@ -293,6 +293,6 @@ fi
 export TOKENIZERS_PARALLELISM=false
 export OMP_THREAD_LIMIT=1
 for LAB_STEP in "${LAB_SELECTED_STEPS[@]}"; do
-    echo "=== Etapa $LAB_STEP — $(date --iso-8601=seconds) ==="
+    echo "=== Etapa $LAB_STEP - $(date --iso-8601=seconds) ==="
     "etapa_$LAB_STEP"
 done
