@@ -266,6 +266,8 @@ python decision_lab.py predict --data data --backend tfidf --artifact runs/tfidf
 
 O original é Qwen3-1.7B com sua cabeça de linguagem, usando prompt. A diferença para o especialista inclui tanto o treinamento quanto a cabeça de saída. Não compare com uma cabeça de classificação aleatória e a apresente como “modelo original”.
 
+A predição original é determinística (`do_sample=False`). O script normaliza `temperature`, `top_p` e `top_k` herdados da configuração do Qwen para evitar avisos de parâmetros de amostragem que não se aplicam à geração gulosa. Se você já copiou `decision_lab.py` para a pasta do laboratório, atualize essa cópia a partir de `scripts/lab04-decisoes/decision_lab.py` antes de repetir a predição.
+
 Para o LLM maior, use um endpoint externo de Chat Completions que você já tenha disponível, por exemplo servindo Qwen3-32B. O modelo maior não será hospedado nas suas duas placas neste roteiro. Configure a URL completa, o nome aceito pelo servidor e sua chave:
 
 ```bash

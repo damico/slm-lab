@@ -173,6 +173,10 @@ class Predictor:
                 self.model = PeftModel.from_pretrained(self.model, artifact, is_trainable=False)
                 self.model_key = "adapter:" + adapter_hash(artifact)
             else:
+                # Greedy decoding is deterministic; normalize inherited sampling defaults.
+                self.model.generation_config.temperature = 1.0
+                self.model.generation_config.top_p = 1.0
+                self.model.generation_config.top_k = 50
                 self.model_key = "base:" + bundle["model_revision"]
             self.model.eval()
 
