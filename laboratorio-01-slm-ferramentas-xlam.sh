@@ -156,23 +156,27 @@ CUDA_VISIBLE_DEVICES=1 python lab_runtime.py predict \
 
 # Bloco 14 de laboratorio-01-slm-ferramentas-xlam.md: 7. Comparar o modelo original, o ajustado e um LLM maior
 etapa_14() {
-export LLM_URL='https://<seu-provedor>/<caminho>/chat/completions'
-export LLM_MODEL='<identificador-real-do-LLM-maior>'
-read -r -s -p 'Chave da API: ' LLM_API_KEY
+export LLM_URL='https://api.openai.com/v1/chat/completions'
+export LLM_MODEL='gpt-4.1-mini'
+read -r -s -p 'Chave da API OpenAI: ' LLM_API_KEY
 export LLM_API_KEY
 export LLM_EXTRA_JSON='{"temperature":0,"max_tokens":512}'
 }
 
 # Bloco 15 de laboratorio-01-slm-ferramentas-xlam.md: 7. Comparar o modelo original, o ajustado e um LLM maior
 etapa_15() {
+cp -n "$LAB_REPO_DIR"/scripts/lab01-ferramentas/count_api_calls.py ./
+python count_api_calls.py --test
 python lab_runtime.py predict --api --limit 1 \
   --input data/validation_demo.jsonl --output results/api_smoke.jsonl
+python count_api_calls.py --predictions results/api_smoke.jsonl
 }
 
 # Bloco 16 de laboratorio-01-slm-ferramentas-xlam.md: 7. Comparar o modelo original, o ajustado e um LLM maior
 etapa_16() {
 python lab_runtime.py predict --api \
   --input data/test.jsonl --output results/test_llm.jsonl
+python count_api_calls.py --predictions results/test_llm.jsonl
 unset LLM_API_KEY
 }
 

@@ -223,23 +223,28 @@ CUDA_VISIBLE_DEVICES=1 python lab_runtime.py predict \
 
 Os dois modelos locais usam a mesma revisão da base, quantização, prompt, GPU e limite de saída. O padrão do tutorial é decodificação gulosa para uma primeira comparação determinística, sem modo thinking. A documentação Qwen recomenda amostragem no uso geral: `--sample` usa temperatura 0,7, top-p 0,8 e top-k 20. Se escolher amostragem na validação, aplique-a a ambas as condições e repita com sementes fixas, por exemplo 42, 43 e 44, em arquivos distintos. Não escolha a melhor resposta entre tentativas sem declarar um experimento diferente.
 
-Para o **LLM maior**, o script aceita um endpoint HTTPS de chat completions com formato compatível. Escolha o modelo forte que você efetivamente pretende substituir ou complementar; registre provedor, identificador, data e parâmetros. O comando a seguir é configurável: os valores entre `<...>` devem ser substituídos. A chave não deve ser escrita no Markdown nem em Git.
+Para a referência por API, use **OpenAI `gpt-4.1-mini`**, como nos Labs 02 e 04. O runtime já aceita o endpoint oficial de Chat Completions e registra modelo, parâmetros, tokens e latência. A chave é lida sem eco e não deve ser salva no Markdown nem no Git. Configure e execute os comandos no mesmo terminal:
 
 ```bash
-export LLM_URL='https://<seu-provedor>/<caminho>/chat/completions'
-export LLM_MODEL='<identificador-real-do-LLM-maior>'
-read -r -s -p 'Chave da API: ' LLM_API_KEY
+export LLM_URL='https://api.openai.com/v1/chat/completions'
+export LLM_MODEL='gpt-4.1-mini'
+read -r -s -p 'Chave da API OpenAI: ' LLM_API_KEY
 export LLM_API_KEY
 export LLM_EXTRA_JSON='{"temperature":0,"max_tokens":512}'
 ```
 
-Um exemplo de endpoint real com esse formato é `https://openrouter.ai/api/v1/chat/completions`; consulte o catálogo do provedor para definir `LLM_MODEL` e os custos. Também é possível usar um servidor próprio compatível. Alguns modelos de raciocínio não aceitam `temperature` ou usam `max_completion_tokens`; ajuste `LLM_EXTRA_JSON` à documentação do modelo. Se o orçamento inclui tokens internos de raciocínio, 512 pode ser insuficiente: estabeleça um orçamento adequado **na validação**, registre-o e mantenha-o no teste. O script transmite o JSON adicional como informado.
+`max_tokens=512` limita a resposta com o array JSON de nomes e argumentos. Mantenha a mesma reserva de saída usada na preparação e nas inferências locais. O catálogo de ferramentas continua dentro do prompt; esta condição não ativa o tool calling nativo da OpenAI. Nenhuma ferramenta é executada: o experimento compara as chamadas propostas. Se houver `output_limit`, a saída truncada conta como falha; ajuste o orçamento na validação e reavalie todas as condições antes de congelar o teste.
 
-Faça primeiro uma chamada para confirmar compatibilidade e custo:
+O `cp -n` abaixo copia somente o novo contador do repositório para a pasta `01-tools`, sem substituir um arquivo existente. Ele permite executar o helper ao lado das cópias locais do runtime; ajuste o caminho do repositório se necessário.
+
+Antes de chamar a API, conte os casos elegíveis. O número depende da divisão por catálogo e dos limites de contexto: não assuma que o teste contém exatamente 10% das 60 mil linhas. Depois, faça uma chamada de validação para conferir compatibilidade e consumo:
 
 ```bash
+cp -n ~/git/slm-lab/scripts/lab01-ferramentas/count_api_calls.py ./
+python count_api_calls.py --test
 python lab_runtime.py predict --api --limit 1 \
   --input data/validation_demo.jsonl --output results/api_smoke.jsonl
+python count_api_calls.py --predictions results/api_smoke.jsonl
 ```
 
 Esse arquivo de uma chamada serve apenas para inspeção. Não o pontue contra os 50 casos como se fosse uma avaliação completa. Se houver `api_error`, corrija credenciais, endpoint ou parâmetros antes de continuar. Então:
@@ -247,10 +252,26 @@ Esse arquivo de uma chamada serve apenas para inspeção. Não o pontue contra o
 ```bash
 python lab_runtime.py predict --api \
   --input data/test.jsonl --output results/test_llm.jsonl
+python count_api_calls.py --predictions results/test_llm.jsonl
 unset LLM_API_KEY
 ```
 
-As chamadas de API podem ser cobradas pelo provedor. `--limit` permite um piloto, mas a comparação final deve utilizar o mesmo conjunto de IDs para todos. Para interromper e refazer uma execução, use outro arquivo de saída: o script impede sobrescrita acidental. Ele não retoma uma inferência parcial automaticamente.
+O contador informa **N chamadas previstas**, uma por exemplo elegível, mais a chamada do piloto. Os exemplos `context_exceeded` não chamam a API. Erros transitórios podem causar até três tentativas por exemplo no runtime; portanto, N descreve as chamadas lógicas, não um limite de requisições HTTP. Não é necessário usar uma GPU para este caminho.
+
+**Estimativa de custo:** tarifas padrão do `gpt-4.1-mini` verificadas em 13/10/2026: US$ 0,40 por milhão de tokens de entrada e US$ 1,60 por milhão de saída. Consulte os [preços oficiais](https://developers.openai.com/api/docs/models/gpt-4.1-mini) ao executar. Para N chamadas:
+
+`custo_USD = N × (tokens_médios_entrada × 0,40 + tokens_médios_saída × 1,60) / 1.000.000`
+
+| Cenário ilustrativo | Entrada / saída por chamada | 1.000 chamadas | 5.000 chamadas |
+|---|---|---:|---:|
+| Resposta JSON curta | 1.000 / 128 tokens | US$ 0,605 | US$ 3,024 |
+| Catálogo maior e saída no limite | 2.048 / 512 tokens | US$ 1,638 | US$ 8,192 |
+
+Esses cenários são premissas, não medições nem tetos garantidos: o tokenizer da OpenAI difere do Qwen, e o tamanho do catálogo varia. O contador soma o `usage` retornado pela API e projeta o custo do teste a partir da média do arquivo informado. A estimativa usa entrada sem desconto de cache e não substitui o faturamento do provedor. Um piloto de uma chamada pode subestimar ou superestimar o conjunto; use mais casos de validação em um arquivo novo se precisar de uma previsão melhor.
+
+**Estimativa de tempo:** o runtime faz chamadas sequenciais. Use `tempo ≈ N × latência_média`; com 1 segundo por chamada, 1.000 chamadas levariam cerca de 16min40s e 5.000 cerca de 1h23min20s. Isso é um cenário, não uma previsão medida para xLAM. O contador mostra o ritmo observado e a projeção baseada nas respostas `ok` do piloto; erros, retentativas, limites de taxa e variações de tamanho podem aumentar o tempo.
+
+`--limit` permite um piloto, mas a comparação final deve usar os mesmos IDs em todas as condições. Para repetir uma execução, use outro arquivo de saída: o script impede sobrescrita acidental e não retoma uma inferência parcial automaticamente. Depois, pontue `results/test_llm.jsonl` com `score_tools.py` e compare com os modelos locais na seção 8.
 
 **Protocolo de comparação:** todos recebem a mesma informação no prompt e produzem uma resposta textual no contrato especificado. Este script não ativa o modo nativo de tool calling ou saídas estruturadas do provedor. Um LLM com suporte nativo pode obter outro resultado; essa configuração merece uma linha adicional na comparação de produção, com seu próprio cliente e adaptação de formato. Não apresente a condição de prompt uniforme como o melhor desempenho possível de cada plataforma.
 
@@ -378,9 +399,12 @@ Fontes consultadas em 10/10/2026; preserve as revisões registradas em seu labor
 - [PyTorch, instalações de versões anteriores](https://pytorch.org/get-started/previous-versions/).
 - [bitsandbytes 0.47, requisitos de instalação](https://huggingface.co/docs/bitsandbytes/v0.47.0/en/installation).
 - [Hugging Face Hub 0.34.4, autenticação e CLI](https://huggingface.co/docs/huggingface_hub/v0.34.4/en/guides/cli).
-- [OpenRouter, formato da API usado como exemplo de endpoint compatível](https://openrouter.ai/docs/api_reference/overview).
+- [OpenAI, Chat Completions](https://platform.openai.com/docs/api-reference/chat/create).
+- [OpenAI, gpt-4.1-mini e preços](https://developers.openai.com/api/docs/models/gpt-4.1-mini).
 
-Scripts auxiliares: [inspecionar_dados.py](scripts/lab01-ferramentas/inspecionar_dados.py), [listar_checkpoints.py](scripts/lab01-ferramentas/listar_checkpoints.py), [preparar_demo.py](scripts/lab01-ferramentas/preparar_demo.py).
+As referências OpenAI foram verificadas em 13/10/2026.
+
+Scripts auxiliares: [inspecionar_dados.py](scripts/lab01-ferramentas/inspecionar_dados.py), [listar_checkpoints.py](scripts/lab01-ferramentas/listar_checkpoints.py), [preparar_demo.py](scripts/lab01-ferramentas/preparar_demo.py), [count_api_calls.py](scripts/lab01-ferramentas/count_api_calls.py).
 
 ## Executar os comandos por script Bash
 
