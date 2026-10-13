@@ -127,6 +127,10 @@ Código: [score_tools.py](scripts/lab01-ferramentas/score_tools.py).
 
 ## 6. Verificar memória e treinar
 
+Antes de treinar, encerre as APIs de inferência dos Labs 02 e 04 nos terminais em que foram iniciadas. Elas mantêm os pesos na VRAM mesmo sem requisições. Treinar com duas GPUs requer memória livre em ambas; uma API ocupando cerca de 2,6 GiB pode provocar OOM já nos primeiros passos. Confira os processos com `nvidia-smi`. A interface Spring pode permanecer aberta, mas as APIs ficam offline durante o treino. Depois, reinicie-as com os scripts em `avaliador/`.
+
+O prompt `(.venv)` não identifica qual ambiente está ativo. Os blocos abaixo ativam explicitamente `~/slm-labs/.venv`, criam `logs` e usam `pipefail`, para que uma falha no treino ou no `tee` não seja mascarada.
+
 Nos comandos `torchrun`, o separador `--` antes do nome do script encerra as opções do lançador. Assim, `--run` e os demais argumentos seguintes chegam ao script de treino sem serem interpretados como abreviações de opções do `torchrun`.
 
 Na primeira execução do treino ou da inferência local, o runtime baixa do Hugging Face os pesos e a configuração do Qwen3-1.7B que ainda não estiverem no cache. Esses arquivos são a base pré-treinada sobre a qual o laboratório ajusta os adaptadores e, no laboratório 04, a camada de classificação. Inferências posteriores reutilizam o cache e carregam o adaptador da pasta local indicada; se algum arquivo do tokenizer ou da base estiver ausente, ele também é obtido do Hugging Face.
@@ -136,6 +140,8 @@ A configuração inicial é: **contexto total 2.048 tokens, reserva de até 512 
 Primeiro, faça um teste de 10 passos em uma GPU. Ajuste o índice se a GPU 1 não estiver livre:
 
 ```bash
+source ~/slm-labs/.venv/bin/activate
+mkdir -p logs runs
 set -o pipefail
 CUDA_VISIBLE_DEVICES=1 python lab_runtime.py train \
   --data data --run runs/smoke_1gpu \
@@ -146,6 +152,9 @@ CUDA_VISIBLE_DEVICES=1 python lab_runtime.py train \
 Depois, verifique o caminho de duas GPUs:
 
 ```bash
+source ~/slm-labs/.venv/bin/activate
+mkdir -p logs runs
+set -o pipefail
 CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- \
   lab_runtime.py train --data data --run runs/smoke_2gpu \
   --max-steps 20 --accum 8 --eval-limit 32 \
@@ -155,6 +164,9 @@ CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- \
 Os adaptadores desses testes curtos são apenas diagnósticos. O treinamento principal começa novamente do modelo original em outra pasta:
 
 ```bash
+source ~/slm-labs/.venv/bin/activate
+mkdir -p logs runs
+set -o pipefail
 nvidia-smi --query-gpu=timestamp,index,memory.used,utilization.gpu,power.draw,temperature.gpu \
   --format=csv -l 2 > logs/gpu_train.csv &
 LAB_MONITOR_PID=$!

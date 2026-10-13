@@ -108,3 +108,7 @@ Para sair do ambiente ao terminar:
 ```bash
 deactivate
 ```
+
+## Antes de iniciar outro treinamento
+
+Encerre as APIs de inferência do avaliador (Labs 02 e 04) e confira `nvidia-smi`: elas mantêm os modelos na memória mesmo ociosas. Para treinar em duas GPUs de 8 GB, ambas precisam estar livres das APIs. Depois do treino, reinicie as APIs pelos scripts de `avaliador/`. Ative explicitamente `~/slm-labs/.venv/bin/activate`; o nome `(.venv)` sozinho pode corresponder ao ambiente antigo do Lab 04. Crie `logs` na pasta do laboratório antes de comandos que usem `tee`.

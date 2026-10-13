@@ -90,6 +90,8 @@ python inspecionar_dados.py
 
 # Bloco 8 de laboratorio-01-slm-ferramentas-xlam.md: 6. Verificar memória e treinar
 etapa_8() {
+source "$LAB_SHARED_DIR/.venv/bin/activate"
+mkdir -p logs runs
 set -o pipefail
 CUDA_VISIBLE_DEVICES=1 python lab_runtime.py train \
   --data data --run runs/smoke_1gpu \
@@ -99,6 +101,9 @@ CUDA_VISIBLE_DEVICES=1 python lab_runtime.py train \
 
 # Bloco 9 de laboratorio-01-slm-ferramentas-xlam.md: 6. Verificar memória e treinar
 etapa_9() {
+source "$LAB_SHARED_DIR/.venv/bin/activate"
+mkdir -p logs runs
+set -o pipefail
 CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- \
   lab_runtime.py train --data data --run runs/smoke_2gpu \
   --max-steps 20 --accum 8 --eval-limit 32 \
@@ -107,6 +112,9 @@ CUDA_VISIBLE_DEVICES=0,1 torchrun --standalone --nproc-per-node=2 -- \
 
 # Bloco 10 de laboratorio-01-slm-ferramentas-xlam.md: 6. Verificar memória e treinar
 etapa_10() {
+source "$LAB_SHARED_DIR/.venv/bin/activate"
+mkdir -p logs runs
+set -o pipefail
 nvidia-smi --query-gpu=timestamp,index,memory.used,utilization.gpu,power.draw,temperature.gpu \
   --format=csv -l 2 > logs/gpu_train.csv &
 LAB_MONITOR_PID=$!

@@ -50,6 +50,12 @@ O executor reutiliza as restrições do `score_sql.py`: leitura, autorizador, ex
 
 [Resultados medidos do Lab 02](docs/lab02-resultados-2026-10-12.json): especialista 25,50% EX-set, original 14,54%, OpenAI mini 51,45%, em 447 perguntas elegíveis com referências válidas. Os limites e denominadores completos estão no roteiro SQL.
 
+## Alternar entre treinamento e demonstração
+
+As APIs mantêm modelos carregados nas GPUs mesmo quando não recebem requisições. Antes de qualquer treino, encerre `start-lab02.sh` e `start-lab04.sh` com Ctrl+C nos seus terminais e confira os processos em `nvidia-smi`. Se foram iniciadas em segundo plano, identifique o PID de `serve_sql.py` ou `serve_decisions.py` e encerre somente esses processos com `kill -TERM PID`. Não encerre todos os processos Python indiscriminadamente.
+
+SQL ocupa cerca de 2,6 GiB da GPU 1 e decisões cerca de 2 GiB da GPU 0 nesta máquina. Esse uso concorre com o treino e pode causar OOM nas RTX 3070 de 8 GB. O Spring pode continuar aberto; as APIs ficarão offline até você reiniciá-las depois do treino. O treino não precisa das APIs web.
+
 ## Ajustar caminhos e portas
 
 | Variável | Padrão | Finalidade |
