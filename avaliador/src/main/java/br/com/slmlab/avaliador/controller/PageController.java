@@ -24,7 +24,7 @@ public class PageController {
         Lab lab = find(id);
         model.addAttribute("lab", lab);
         model.addAttribute("active", id);
-        return lab.supported() ? "lab04/decisions" : "pending";
+        return switch (id) { case "02" -> "lab02/sql"; case "04" -> "lab04/decisions"; default -> "pending"; };
     }
 
     @GetMapping("/docs/{id}")

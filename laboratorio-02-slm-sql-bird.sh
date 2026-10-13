@@ -41,6 +41,8 @@ list_steps() {
 17 - 7. Comparar o modelo original, o ajustado e um LLM maior
 18 - 8. Avaliar executando as consultas
 19 - 8. Avaliar executando as consultas
+20 - Testar o adaptador no avaliador web: API SQL
+21 - Testar o adaptador no avaliador web: Spring
 STEPS
 }
 
@@ -201,6 +203,13 @@ if [[ $# == 0 || ${1:-} == --help || ${1:-} == -h ]]; then
     usage
     exit 0
 fi
+etapa_20() {
+    bash "$LAB_REPO_DIR/avaliador/start-lab02.sh"
+}
+etapa_21() {
+    bash "$LAB_REPO_DIR/avaliador/run.sh"
+}
+
 if [[ ${1:-} == --list && $# == 1 ]]; then
     list_steps
     exit 0
@@ -226,8 +235,8 @@ for LAB_PART in "${LAB_PARTS[@]}"; do
         echo "Etapa inválida: $LAB_PART" >&2
         exit 2
     fi
-    if (( LAB_FIRST < 1 || LAB_LAST > 19 )); then
-        echo "Use etapas entre 1 e 19." >&2
+    if (( LAB_FIRST < 1 || LAB_LAST > 21 )); then
+        echo "Use etapas entre 1 e 21." >&2
         exit 2
     fi
     for ((LAB_STEP=LAB_FIRST; LAB_STEP<=LAB_LAST; LAB_STEP++)); do

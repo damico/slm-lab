@@ -2,7 +2,7 @@
 
 Aplicação Spring Boot + Thymeleaf Layout Dialect + Bootstrap 5, com comparação opcional por Spring AI. A interface usa as referências visuais fornecidas em `/tmp/design`: cartões escuros, números grandes, destaques roxos e verdes e layout responsivo. Os recursos de Bootstrap e Chart.js são WebJars locais; o navegador não consulta CDN.
 
-O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. Os Labs 01, 02 e 03 têm páginas explicativas e campos de prévia, identificados como indisponíveis até que seus adaptadores e APIs estejam prontos. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
+O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. O Lab 02 usa o adaptador SQL treinado, os 11 bancos SQLite do Mini-Dev e as respostas preservadas do benchmark. Os Labs 01 e 03 têm páginas de prévia até que seus adaptadores e APIs estejam prontos. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
 
 ## Iniciar na máquina com as GPUs
 
@@ -31,10 +31,34 @@ Abra **http://localhost:8080**. Em outra máquina da mesma rede, use o endereço
 
 A primeira compilação baixa as dependências Java e os assets WebJars do Maven Central. As versões são fixadas no `pom.xml`; as próximas compilações reaproveitam o cache do Maven. `run.sh` grava o log da compilação e do Spring em `logs/web-DATA-HORA-PID.log`. A API Python grava seu próprio log em `logs/python-DATA-HORA-PID.log`.
 
+## Iniciar também o Lab 02
+
+Na máquina com os bancos e pesos, abra um terminal adicional:
+
+```bash
+cd ~/git/slm-lab/avaliador
+./start-lab02.sh
+```
+
+Espere `API SQL pronta em http://127.0.0.1:8082`. O script usa `~/slm-labs/02-sql/runs/main_r16_lr1e4/final_adapter`, `data/db_manifest.json` e as predições em `results`, carrega o modelo uma vez e grava log separado em `logs/sql-DATA-HORA-PID.log`. A revisão do modelo vem do `revisions.json` original. Não baixa datasets nem treina novamente. Por padrão, SQL usa a GPU 1 e decisões a GPU 0, permitindo manter as duas APIs ativas.
+
+Reinicie o Spring com `./run.sh` depois de atualizar o repositório e abra **http://localhost:8080/labs/02**. A tela permite selecionar os 500 exemplos por banco, editar pergunta e evidence, consultar esquema, gerar SQL, conferir as linhas retornadas e confrontar EX-set/EX-bag com a referência. A referência é associada apenas ao banco, pergunta e evidence originais e nunca é enviada ao modelo. O histórico do navegador e a exportação JSON preservam o teste.
+
+A comparação registrada mostra as respostas original, ajustada e OpenAI salvas no teste concluído, sem novas chamadas pagas. **Comparar com OpenAI ao vivo** faz uma chamada opcional com as mesmas mensagens de sistema/usuário e reserva de 512 tokens. Tokens e custo estimado aparecem na tela; a chave segue somente no servidor Spring.
+
+O executor reutiliza as restrições do `score_sql.py`: leitura, autorizador, extensões desativadas, timeout por progress handler de 15 segundos e limite de 100.000 linhas. A interface exibe até 100 linhas, indicando cortes. Somente bancos do Mini-Dev cadastrados no manifesto ficam disponíveis; o navegador não escolhe caminhos no filesystem. O botão de execução manual do SQL editado mostra uma nova consulta, sem reaproveitar a comparação do SQL anterior. Esse serviço é para o laboratório local; o limite SQLite não substitui isolamento de processo para um serviço público.
+
+[Resultados medidos do Lab 02](docs/lab02-resultados-2026-10-12.json): especialista 25,50% EX-set, original 14,54%, OpenAI mini 51,45%, em 447 perguntas elegíveis com referências válidas. Os limites e denominadores completos estão no roteiro SQL.
+
 ## Ajustar caminhos e portas
 
 | Variável | Padrão | Finalidade |
 |---|---|---|
+| `LAB02_DIR` | `~/slm-labs/02-sql` | Dados, bancos, resultados e revisão do Lab SQL |
+| `LAB02_ADAPTER` | `LAB02_DIR/runs/main_r16_lr1e4/final_adapter` | Adaptador SQL treinado |
+| `LAB02_GPU` | `1` | GPU física da API SQL |
+| `LAB02_API_PORT` | `8082` | Porta Python SQL |
+| `LAB02_API_URL` | `http://127.0.0.1:8082` | Conexão Spring com SQL |
 | `LAB04_DIR` | `~/lab04-decisoes` | Pasta com dados, adaptador e calibração |
 | `LAB_VENV_DIR` | `~/slm-labs/.venv` | Venv compartilhado já instalado |
 | `LAB04_GPU` | `0` | GPU física usada pela API Python |
@@ -51,7 +75,7 @@ LAB04_GPU=1 ./start-lab04.sh
 Se o Spring rodar em outro computador, a API Python pode continuar vinculada ao localhost da máquina de inferência. Abra um túnel SSH no computador do Spring:
 
 ```bash
-ssh -L 8084:127.0.0.1:8084 jdamico@192.168.68.137
+ssh -L 8084:127.0.0.1:8084 -L 8082:127.0.0.1:8082 jdamico@192.168.68.137
 ```
 
 Nesse caso, mantenha `LAB04_API_URL=http://127.0.0.1:8084`. Atualize também `LAB04_API_URL` se mudar a porta Python. Os nomes e a origem das variáveis são mostrados aqui; eles não alteram os caminhos do treino.
@@ -106,6 +130,11 @@ A indicação de revisão e as probabilidades pertencem ao classificador calibra
 
 | Serviço | Rota | Uso |
 |---|---|---|
+| Spring | `GET /api/lab02/status` | Conexão da API SQL |
+| Spring | `GET /api/lab02/catalog` | Bancos, esquemas, exemplos e métricas SQL |
+| Spring | `POST /api/lab02/predict/stream` | Geração e execução SQL com SSE |
+| Spring | `POST /api/lab02/predict` | Mesmo resultado SQL em JSON |
+| Spring | `POST /api/lab02/execute` | Executa SQL somente leitura no banco cadastrado |
 | Spring | `GET /api/status` | Conexão da inferência e disponibilidade da comparação |
 | Spring | `GET /api/lab04/catalog` | Classes e ações do adaptador |
 | Spring | `GET /api/lab04/examples` | Exemplos reais preparados no lab |
@@ -139,4 +168,4 @@ Para conferir a inferência real, inicie `start-lab04.sh` e execute um caso ABCD
 
 ## Capturas da interface
 
-[Dashboard](docs/dashboard.png), [Lab 04 com inferência real](docs/lab04.png), [resposta entregue](docs/lab04-desfecho.png) e [evolução do atendimento](docs/lab04-evolucao.png).
+[Dashboard](docs/dashboard.png), [Lab 04 com inferência real](docs/lab04.png), [resposta entregue](docs/lab04-desfecho.png) e [evolução do atendimento](docs/lab04-evolucao.png) e [Lab 02 com SQL e tabela reais](docs/lab02.png).

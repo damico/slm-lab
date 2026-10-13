@@ -42,6 +42,19 @@ class ComparisonServiceTest {
             assertThat(request.get("max_tokens").asInt()).isEqualTo(32);
             assertThat(request.get("temperature").asDouble()).isEqualTo(0);
             assertThat(request.has("tools")).isFalse();
+            var sqlContext = mapper.createObjectNode().put("max_new", 512);
+            var messages = sqlContext.putArray("messages");
+            messages.addObject().put("role", "system").put("content", "SQLite only {literal}");
+            messages.addObject().put("role", "user").put("content", "Question: List rows {1}");
+            var sqlResult = service.compareSql(sqlContext);
+            assertThat(sqlResult.get("status")).isEqualTo("ok");
+            request = mapper.readTree(received.get());
+            assertThat(request.get("max_tokens").asInt()).isEqualTo(512);
+            assertThat(request.get("messages").size()).isEqualTo(2);
+            assertThat(request.get("messages").get(0).get("role").asText()).isEqualTo("system");
+            assertThat(request.get("messages").get(0).get("content").asText()).isEqualTo("SQLite only {literal}");
+            assertThat(request.get("messages").get(1).get("content").asText()).isEqualTo("Question: List rows {1}");
+
         } finally { server.stop(0); }
     }
 }

@@ -12,7 +12,7 @@ public record Lab(String id, String title, String category, String dataset, Stri
                 List.of("Solicitação + catálogo", "SLM especializado", "Chamadas em JSON")),
             new Lab("02", "SQL", "Text-to-SQL", "BIRD / Mini-Dev",
                 "Faça perguntas a um banco e confira as respostas executando o SQL gerado.",
-                "SQL e resultado da consulta", "laboratorio-02-slm-sql-bird.md", false,
+                "SQL e resultado da consulta", "laboratorio-02-slm-sql-bird.md", true,
                 List.of("Pergunta + esquema + evidence", "SLM especializado", "SQL + avaliação de execução")),
             new Lab("03", "Recibos", "Extração estruturada", "SROIE / ICDAR2019",
                 "Extraia empresa, data, endereço e total a partir de um recibo com OCR.",

@@ -11,10 +11,13 @@
       if (!response.ok) throw new Error('status');
       window.labStatus = await response.json();
     } catch (_) { window.labStatus = {available:false, comparison_enabled:false}; }
+    let sqlAvailable=false;
+    try { const response=await fetch('/api/lab02/status',{signal:AbortSignal.timeout(7000)}); sqlAvailable=response.ok && (await response.json()).available; } catch (_) {}
     document.querySelectorAll('[data-api-status]').forEach(el => {
-      el.textContent = window.labStatus.available ? 'Lab 04 / modelo conectado' : 'Lab 04 / API offline';
+      const connected=[sqlAvailable?'SQL':null,window.labStatus.available?'Decisões':null].filter(Boolean);
+      el.textContent=connected.length ? connected.join(' + ')+' / conectado' : 'APIs offline';
     });
-    document.querySelectorAll('[data-status-dot]').forEach(el => el.classList.toggle('ready', window.labStatus.available));
+    document.querySelectorAll('[data-status-dot]').forEach(el => el.classList.toggle('ready', window.labStatus.available||sqlAvailable));
     window.dispatchEvent(new CustomEvent('slm-status', {detail:window.labStatus}));
   }
   refreshStatus();

@@ -16,6 +16,7 @@ management:
       exposure:
         include: health,info
 avaliador:
+  sql-inference-url: ${LAB02_API_URL:http://127.0.0.1:8082}
   inference-url: ${LAB04_API_URL:http://127.0.0.1:8084}
   openai-api-key: ${OPENAI_API_KEY:}
   openai-model: ${OPENAI_MODEL:gpt-4.1-mini}

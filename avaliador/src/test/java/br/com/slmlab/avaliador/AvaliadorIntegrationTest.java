@@ -44,6 +44,8 @@ class AvaliadorIntegrationTest {
                     case "/catalog" -> "{\"labels\":[\"retrieve_utterance\"],\"actions\":[]}";
                     case "/examples" -> "{\"examples\":[]}";
                     case "/context" -> "{\"prompt\":\"literal {history} prompt\",\"eligible\":true,\"input_tokens\":12,\"policies\":[],\"labels\":[\"retrieve_utterance\"]}";
+                    case "/predict" -> "{\"context\":{\"eligible\":true},\"slm\":{\"sql\":\"SELECT 1\",\"status\":\"ok\"}}";
+                    case "/execute" -> "{\"status\":\"ok\",\"rows\":[[1]],\"columns\":[\"1\"]}";
                     case "/decide" -> "{\"choice\":\"retrieve_utterance\",\"confidence\":0.8,\"requires_review\":false,\"probabilities\":{\"retrieve_utterance\":0.8}}";
                     default -> "{}";
                 };
@@ -59,6 +61,7 @@ class AvaliadorIntegrationTest {
     @DynamicPropertySource
     static void settings(DynamicPropertyRegistry registry) {
         registry.add("avaliador.inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
+        registry.add("avaliador.sql-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.openai-api-key", () -> "");
     }
     @Autowired MockMvc mvc;
@@ -68,7 +71,7 @@ class AvaliadorIntegrationTest {
     @Test void pagesAndLocalAssetsRenderWithoutApiKey() throws Exception {
         mvc.perform(get("/")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("85,45")));
         mvc.perform(get("/labs/04")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("timeline")));
-        mvc.perform(get("/labs/02")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Em preparação")));
+        mvc.perform(get("/labs/02")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("sql-question")));
         mvc.perform(get("/js/journey.js")).andExpect(status().isOk());
         mvc.perform(get("/docs/04")).andExpect(status().isOk());
         mvc.perform(get("/webjars/bootstrap/5.3.7/css/bootstrap.min.css")).andExpect(status().isOk());
@@ -99,6 +102,32 @@ class AvaliadorIntegrationTest {
         mvc.perform(post("/api/lab04/predict").contentType("application/json")
             .content("{\"history\":[{\"role\":\"customer\",\"text\":\"Hello\"}],\"compare\":true}"))
             .andExpect(status().isBadRequest());
+    }
+
+
+    @Test void sqlUsesSeparateContractAndRejectsGoldAndPaths() throws Exception {
+        mvc.perform(get("/api/lab02/status")).andExpect(jsonPath("$.available").value(true));
+        mvc.perform(post("/api/lab02/predict").contentType("application/json")
+            .content("{\"db_id\":\"demo\",\"question\":\"How many?\",\"evidence\":\"\",\"compare\":false}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.slm.sql").value("SELECT 1"));
+        JsonNode payload = mapper.readTree(lastHistory.get());
+        assertThat(payload.size()).isEqualTo(3);
+        assertThat(payload.has("compare")).isFalse();
+        mvc.perform(post("/api/lab02/predict").contentType("application/json")
+            .content("{\"db_id\":\"demo\",\"question\":\"How many?\",\"evidence\":\"\",\"gold\":\"SELECT 1\"}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/lab02/execute").contentType("application/json")
+            .content("{\"db_id\":\"demo\",\"sql\":\"SELECT 1\"}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.rows[0][0]").value(1));
+    }
+
+    @Test void sqlStreamReturnsCompletion() throws Exception {
+        var result = mvc.perform(post("/api/lab02/predict/stream").contentType("application/json")
+            .content("{\"db_id\":\"demo\",\"question\":\"List rows\",\"evidence\":\"\",\"compare\":false}"))
+            .andExpect(request().asyncStarted()).andReturn();
+        result.getAsyncResult(5000);
+        mvc.perform(asyncDispatch(result)).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("event:done")));
     }
 
     @Test void sseDeliversContextDecisionAndCompletion() throws Exception {

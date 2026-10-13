@@ -24,7 +24,7 @@ def authorize(action, arg1, arg2, database, trigger):
     return sqlite3.SQLITE_OK if action in allowed else sqlite3.SQLITE_DENY
 
 
-def execute_readonly(path, sql, timeout=15, max_rows=100000):
+def execute_readonly(path, sql, timeout=15, max_rows=100000, with_columns=False):
     con = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro", uri=True)
     try:
         con.execute("PRAGMA query_only=ON")
@@ -39,7 +39,7 @@ def execute_readonly(path, sql, timeout=15, max_rows=100000):
         rows = cur.fetchmany(max_rows + 1)
         if len(rows) > max_rows:
             raise ValueError("Limite de linhas atingido.")
-        return rows
+        return {"columns": [column[0] for column in cur.description], "rows": rows} if with_columns else rows
     finally:
         con.close()
 

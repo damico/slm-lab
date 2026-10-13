@@ -322,13 +322,39 @@ Para integrar ao InfiniteStack, acrescente seleção autorizada de schemas, desc
 
 ## 9. Interpretar os resultados e demonstrar valor
 
-Cada avaliação produz `*.summary.json` e `*.cases.jsonl`. A tabela final da apresentação deve ser preenchida com seus números:
+Execução concluída em **12/10/2026**, no equipamento com duas RTX 3070 de 8 GB. Os números abaixo foram lidos dos relatórios reais em `~/slm-labs/02-sql`; uma cópia dos resumos, metadados, revisões e hashes está em [resultados preservados](avaliador/docs/lab02-resultados-2026-10-12.json).
 
-| Condição | N elegíveis/válidos | Acerto funcional | IC 95% | Latência p50/p95 | Pico VRAM | Custo por 1.000 solicitações |
-|---|---:|---:|---|---|---|---|
-| SLM original | medir | medir | calcular | medir | medir | estimar com premissas |
-| SLM ajustado | medir | medir | calcular | medir | medir | estimar com premissas |
-| LLM maior | mesmo conjunto | medir | calcular | medir ponta a ponta | não observável em API | calcular pelo consumo real |
+Foram preparados 5.262 exemplos de treino (750 excluídos por tamanho) e 588 de validação, com separação por bancos. Das 500 perguntas de teste, 449 cabem na janela de 2.048 tokens com reserva de 512 tokens de saída, cobertura de **89,80%**. Duas referências (`test:518` e `test:701`) excederam o timeout SQLite de 15 segundos nas três condições; restam **498 referências válidas e 447 casos elegíveis/válidos**. Isso indica uma limitação desta execução com timeout, não prova que esses SQLs estejam incorretos.
+
+| Condição | Acertos / 447 | EX-set elegíveis | Wilson 95% | EX-set / 498 válidos | Latência p50 / p95 | Pico PyTorch alocado / reservado |
+|---|---:|---:|---|---:|---|---|
+| Qwen3-1.7B original | 65 | 14,54% | 11,58% a 18,11% | 13,05% | 2,50 s / 5,80 s | 1,45 / 2,35 GiB |
+| Qwen3-1.7B ajustado | 114 | 25,50% | 21,68% a 29,74% | 22,89% | 5,49 s / 8,95 s | 1,56 / 2,39 GiB |
+| OpenAI `gpt-4.1-mini` | 230 | 51,45% | 46,83% a 56,05% | 46,18% | 1,03 s / 1,54 s | não observável em API |
+
+| Condição | Taxa executável / 447 | EX-bag / 447 | Simples (134) | Moderado (224) | Difícil (89) |
+|---|---:|---:|---:|---:|---:|
+| Original | 50,34% | 12,98% | 31,34% | 8,48% | 4,49% |
+| Ajustado | 63,09% | 23,27% | 43,28% | 19,64% | 13,48% |
+| `gpt-4.1-mini` | 97,76% | 47,65% | 67,91% | 45,98% | 40,45% |
+
+A comparação pareada do ajuste contra o original mostra **+10,96 pontos percentuais**, bootstrap 95% de **+6,71 a +15,21 pp**: 72 casos melhoraram e 23 pioraram. Contra a API, o ajuste ficou **25,95 pp abaixo**, intervalo de **-30,87 a -21,03 pp**: venceu em 21 casos e perdeu em 137. O bootstrap é por pergunta e não controla a correlação entre perguntas do mesmo banco.
+
+O fine-tuning melhorou o SLM neste recorte, mas não alcançou o LLM de referência nem reduziu a latência de geração: o especialista gerou respostas mais lentas nesta medição. Para a aula, mostre o ganho sobre o pequeno modelo original e as falhas que ainda exigem outro modelo ou revisão. Na demonstração de validação, houve 12/48 acertos no original e 24/48 no ajustado; esses 50 exemplos iniciais não substituem o teste completo.
+
+### Treinamento e consumo medidos
+
+O adaptador avaliado está em `runs/main_r16_lr1e4/final_adapter`: duas épocas, LoRA rank 16, learning rate `0.0001`, acumulação 8, microbatch 1 por GPU, seed 42 e avaliação limitada a 256 exemplos. Foram 658 passos, `train_loss=0.18087`, tempo do Trainer **1h17min42s** e tempo total de `/usr/bin/time` **1h19min02s**, com código de saída 0 e adaptador final gravado. O relatório registra pico alocado de **5,63 GiB no rank 0**. O monitor `nvidia-smi` registrou picos de **7.002 MiB na GPU 0** e **7.413 MiB na GPU 1**; memória de processos/contextos CUDA é diferente da memória alocada medida pelo PyTorch.
+
+A integração das 2.371 amostras de potência por GPU durante o monitoramento estima **0,413 kWh nas duas GPUs** (0,229 + 0,184 kWh). Isso não inclui CPU, fonte, discos ou outros componentes. Para custo de energia do treino, multiplique esse consumo parcial pela tarifa local; amortização de hardware e operação ainda precisam de premissas declaradas.
+
+Na inferência completa, as somas das latências registradas foram aproximadamente **30min00s no original**, **46min39s no ajustado** e **8min20s na API**. São somas de latências, não tempos de relógio completos com inicialização e pontuação. O original registrou 430 gerações `ok`, 19 `output_limit` e 51 `context_exceeded`; o ajustado, 444 `ok`, cinco `output_limit` e 51 `context_exceeded`; a API, 449 `ok` e 51 `context_exceeded`. As medianas e p95 da tabela usam apenas gerações `ok`, não apenas consultas SQL corretas.
+
+### Custo da API observado
+
+As **449 chamadas do teste** registraram **299.019 tokens de entrada e 27.584 de saída**. Pelas tarifas já utilizadas neste roteiro (US$ 0,40 e US$ 1,60 por milhão), o custo estimado do teste é **US$ 0,163742**, sem incluir o piloto de validação. O provedor pode aplicar descontos de cache; sem detalhamento de faturamento, esta conta usa a tarifa integral de entrada.
+
+Isso equivale a **US$ 0,365 por 1.000 chamadas elegíveis com o mesmo perfil médio de tokens**, ou **US$ 0,327 por 1.000 perguntas apresentadas com a mesma cobertura** (incluindo as que não geram chamada). Não extrapole esses valores para perguntas de tamanho diferente. Não há custo local por 1.000 inferências completo medido; energia da inferência e amortização continuam dependentes de novas medições e premissas.
 
 `accuracy_eligible` usa apenas casos elegíveis e com referência válida; `accuracy_all_valid` também penaliza os casos que não couberam no contexto. Mostre ambos e a cobertura. Predições ausentes, erros de API e respostas que atingiram o limite de saída contam como falhas, não desaparecem da acurácia. Latências p50/p95 são calculadas sobre requisições bem-sucedidas; o número desse subconjunto aparece no relatório.
 
@@ -352,6 +378,28 @@ Resultados possíveis que justificam uma boa aula:
 Não escolha somente exemplos em que o SLM vence. Selecione para a demonstração: um acerto compartilhado, uma melhoria após o ajuste, uma falha do especialista e um caso fora do escopo. Use o teste apenas após congelar as escolhas. Modelos podem ter visto benchmarks públicos no pré-treinamento; a separação feita aqui impede vazamento no **seu fine-tuning**, mas não certifica ausência de contaminação anterior.
 
 O idioma dos datasets é inglês. Apresente os resultados quantitativos em inglês. Uma demonstração em português pode ser incluída separadamente como teste de transferência, sem afirmar que houve especialização em português. Traduzir todo o dataset mudaria o experimento e exigiria nova revisão.
+
+### Testar o adaptador no avaliador web
+
+O [avaliador](avaliador/README.md) agora integra os Labs 02 e 04. Em um terminal, na máquina que contém os pesos e bancos, execute:
+
+```bash
+bash ~/git/slm-lab/avaliador/start-lab02.sh
+```
+
+O serviço usa a mesma revisão do modelo, tokenizer, template sem thinking e adaptador da execução medida; carrega os pesos uma vez e permanece ativo em `127.0.0.1:8082`. O script usa a GPU 1 por padrão, enquanto o Lab 04 usa a GPU 0. `LAB02_DIR`, `LAB02_ADAPTER`, `LAB02_GPU` e `LAB02_API_PORT` permitem ajustar pasta, artefato, GPU e porta. Não é necessário repetir treinamento, copiar datasets ou baixar bancos novamente.
+
+Em outro terminal, inicie ou reinicie a interface:
+
+```bash
+bash ~/git/slm-lab/avaliador/run.sh
+```
+
+Abra `http://localhost:8080/labs/02`. Selecione banco e pergunta BIRD ou edite pergunta/evidence. A tela gera e executa SQL somente leitura, mostra as linhas retornadas, esquema, latência, tokens, etapas e confronto EX-set/EX-bag com o gabarito quando a entrada coincide com um exemplo. O gabarito nunca entra no prompt. Alterar a pergunta ou evidence remove sua associação com a referência.
+
+As respostas original, ajustada e OpenAI do benchmark aparecem como **registradas**, sem novas chamadas. A opção de comparação OpenAI ao vivo usa `OPENAI_API_KEY` configurada no servidor Spring e faz uma chamada paga com as mesmas mensagens e até 512 tokens de saída. Ela também mostra tokens e custo estimado. `LAB02_API_URL` configura a conexão da interface à API SQL, independente de `LAB04_API_URL`.
+
+O executor usa os bancos cadastrados no Mini-Dev, bloqueia escrita, extensões, `ATTACH` e PRAGMAs, limita consultas a 15 segundos pelo progress handler e 100.000 linhas, e exibe no máximo 100 linhas na interface. A restrição local segue os limites descritos na seção 8.
 
 ## 10. Problemas frequentes
 
@@ -392,7 +440,7 @@ Guarde o Markdown, scripts utilizados, `requirements.txt`, `requirements-resolve
 
 O adaptador sozinho não é um modelo completo. Para reutilizá-lo, carregue a mesma revisão do Qwen base e depois o adaptador, como faz `load_model`. Não é necessário mesclar os pesos para a demonstração. Uma futura conversão para GGUF/Ollama deve ser tratada como outro artefato, com nova avaliação, porque a quantização e o runtime mudam.
 
-**Validação deste tutorial:** sintaxe dos scripts e lógica de avaliação/preparação verificadas com exemplos controlados. O treinamento CUDA, os downloads completos e as chamadas a um LLM pago não foram executados no ambiente de elaboração. Os testes curtos acima são as verificações necessárias no seu laboratório; não há acurácia, duração ou consumo de VRAM inventados neste documento.
+**Validação deste tutorial:** treinamento CUDA, inferências original/ajustada/API e avaliação completa foram executados pelo usuário e os relatórios conferidos em 12/10/2026. A integração web foi verificada com o adaptador treinado e bancos SQLite reais, além dos testes de contratos, contexto e restrições de execução. Os limites e denominadores das métricas aparecem na seção 9.
 
 ## 13. Referências primárias
 
@@ -417,13 +465,13 @@ Scripts auxiliares: [inspecionar_dados.py](scripts/lab02-sql/inspecionar_dados.p
 
 ## Executar os comandos por script Bash
 
-O arquivo [laboratorio-02-slm-sql-bird.sh](laboratorio-02-slm-sql-bird.sh) reúne os 19 blocos Bash deste roteiro em etapas numeradas. Liste as etapas e execute um intervalo:
+O arquivo [laboratorio-02-slm-sql-bird.sh](laboratorio-02-slm-sql-bird.sh) reúne os 21 blocos Bash deste roteiro em etapas numeradas. Liste as etapas e execute um intervalo:
 
 ```bash
 bash ~/git/slm-lab/laboratorio-02-slm-sql-bird.sh --list
 bash ~/git/slm-lab/laboratorio-02-slm-sql-bird.sh --steps 1-5
 ```
 
-Ajuste o caminho do repositório se necessário. Execute as etapas seguintes em ordem conforme o roteiro; selecione as alternativas adequadas. Configuração de API e chamadas devem ficar na mesma execução. O servidor do laboratório 04 ocupa o terminal, e a chamada HTTP deve ser feita em outro terminal. Downloads manuais e caminhos de exemplo continuam exigindo os ajustes descritos no texto.
+Ajuste o caminho do repositório se necessário. Execute as etapas seguintes em ordem conforme o roteiro; selecione as alternativas adequadas. Configuração de API e chamadas devem ficar na mesma execução. As etapas 20 (API SQL) e 21 (interface Spring) ficam em primeiro plano: execute-as em terminais separados. Downloads manuais e caminhos de exemplo continuam exigindo os ajustes descritos no texto.
 
 Cada execução grava stdout e stderr em `logs/laboratorio-02-slm-sql-bird-DATA-HORA-PID.log` na pasta do laboratório. Os logs específicos dos comandos também são mantidos. Uma falha interrompe o script e registra o código de saída. O script usa a pasta do laboratório indicada neste roteiro; `LAB_WORK_DIR` permite escolher outra.

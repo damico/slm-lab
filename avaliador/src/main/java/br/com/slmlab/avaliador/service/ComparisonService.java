@@ -6,6 +6,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.Message;
+import java.util.ArrayList;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
@@ -32,6 +35,34 @@ public class ComparisonService {
         } else {
             client = null;
         }
+    }
+
+
+    public Map<String, Object> compareSql(JsonNode context) {
+        if (!enabled()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Comparação OpenAI não configurada.");
+        var messages = new ArrayList<Message>();
+        for (JsonNode message : context.path("messages")) {
+            String text = message.path("content").asText();
+            messages.add("system".equals(message.path("role").asText()) ? new SystemMessage(text) : new UserMessage(text));
+        }
+        long start = System.nanoTime();
+        var response = client.prompt().messages(messages)
+                .options(OpenAiChatOptions.builder().model(properties.openaiModel()).temperature(0.0)
+                        .maxTokens(context.path("max_new").asInt(512)).build()).call().chatResponse();
+        if (response == null || response.getResult() == null)
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "OpenAI retornou uma resposta vazia.");
+        var usage = response.getMetadata().getUsage();
+        int input = usage.getPromptTokens() == null ? 0 : usage.getPromptTokens();
+        int output = usage.getCompletionTokens() == null ? 0 : usage.getCompletionTokens();
+        String sql = response.getResult().getOutput().getText();
+        var result = new LinkedHashMap<String,Object>();
+        result.put("model", properties.openaiModel());
+        result.put("sql", sql == null ? "" : sql.strip());
+        result.put("status", "length".equalsIgnoreCase(response.getResult().getMetadata().getFinishReason()) ? "output_limit" : "ok");
+        result.put("latency_s", (System.nanoTime()-start)/1e9);
+        result.put("prompt_tokens", input); result.put("completion_tokens", output);
+        result.put("estimated_cost_usd", (input*properties.inputPricePerMillion()+output*properties.outputPricePerMillion())/1_000_000);
+        return result;
     }
 
     public boolean enabled() { return client != null; }
