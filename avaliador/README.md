@@ -56,6 +56,41 @@ As APIs mantêm modelos carregados nas GPUs mesmo quando não recebem requisiç�
 
 SQL ocupa cerca de 2,6 GiB da GPU 1 e decisões cerca de 2 GiB da GPU 0 nesta máquina. Esse uso concorre com o treino e pode causar OOM nas RTX 3070 de 8 GB. O Spring pode continuar aberto; as APIs ficarão offline até você reiniciá-las depois do treino. O treino não precisa das APIs web.
 
+## Explorar os datasets dos cinco laboratórios
+
+![Explorador com os dados reais dos cinco laboratórios](docs/datasets.png)
+
+Abra **/datasets** pelo menu **Explorar datasets** ou pelo atalho na página inicial. A área funciona sem modelos, GPUs ou chave de API. Escolha um lab, selecione treino/validação/teste, busque por texto e abra um exemplo. O leitor mostra ferramentas, esquema SQL, imagem e texto do recibo, histórico de atendimento ou tabela financeira conforme a tarefa. **Mostrar resposta esperada** revela o gabarito; não é inferência. Há paginação, exemplo aleatório e download de um registro em JSON.
+
+No terminal da máquina que contém os dados, inicie o leitor:
+
+```bash
+cd ~/git/slm-lab/avaliador
+./start-datasets.sh
+```
+
+Ele lê os JSONLs das pastas de trabalho dos labs e constrói um índice de busca SQLite em `~/slm-labs/.dataset-explorer/index.sqlite`. Não altera os exemplos de treino, adaptadores ou resultados. O índice guarda busca e posições no arquivo, evitando carregar o dataset inteiro a cada página. Os arquivos originais são lidos apenas quando você abre um exemplo. Não execute este serviço com dados que estejam sendo regravados: se a assinatura do arquivo mudar, o leitor recusa usar posições antigas. Reiniciar o serviço atualiza o índice.
+
+Quando os Labs 03 e 05 ainda não estão preparados, importe suas **fontes originais** para exploração:
+
+```bash
+CUDA_VISIBLE_DEVICES='' ~/slm-labs/.venv/bin/python   ~/git/slm-lab/avaliador/datasets/import_originals.py --lab all
+```
+
+Esse comando baixa o SROIE da revisão registrada do Hugging Face (imagens, transcrições e campos anotados) e o FinQA da revisão fixada do Lab 05 (textos, tabelas e perguntas dos splits públicos). Os downloads servem para estudar os dados antes de treinar. Não executa OCR, não baixa pesos e não faz inferência. Os caches de importação são independentes das pastas dos laboratórios; preservam revisão e origem. A licença/card do SROIE e a licença MIT do FinQA são mantidos com a importação. `--lab 03` ou `--lab 05` importa somente uma fonte. Uma importação completa existente é preservada.
+
+Reinicie `start-datasets.sh` depois da importação e o Spring depois de atualizar o código. A tela distingue **dados preparados do laboratório** de **fonte original ainda não preparada**. No SROIE original, o texto é a transcrição anotada, não a saída de Tesseract; o split de validação do lab ainda não existe. No FinQA original, o contexto é completo, sem a recuperação/janela do Lab 05. Quando houver dados preparados, eles serão a versão padrão; a fonte original permanece selecionável. O Lab 05 também oferece os pares SFT/destilado se `paired_main` ou `paired_pilot` estiverem presentes.
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `DATASET_API_URL` | `http://127.0.0.1:8086` | Conexão Spring com o leitor Python |
+| `DATASET_API_PORT` | `8086` | Porta local do leitor |
+| `DATASET_CACHE_DIR` | `~/slm-labs/.dataset-explorer` | Índice e fontes originais importadas |
+| `LAB_SHARED_DIR` | `~/slm-labs` | Raiz das pastas dos labs |
+| `LAB01_DIR` a `LAB05_DIR` | Pastas usuais dos roteiros | Sobrescrever a localização dos dados; Lab 04 usa `~/lab04-decisoes` |
+
+O serviço lê em CPU; pode permanecer aberto durante uma inferência. A indexação inicial usa CPU e disco e pode demorar em conjuntos grandes, mas não ocupa VRAM. Logs ficam separados em `avaliador/logs/datasets-DATA-HORA-PID.log`. Se o Spring estiver em outra máquina, acrescente `-L 8086:127.0.0.1:8086` ao túnel SSH. Imagens são servidas somente das pastas cadastradas de recibos; a interface não aceita caminhos arbitrários.
+
 ## Ajustar caminhos e portas
 
 | Variável | Padrão | Finalidade |

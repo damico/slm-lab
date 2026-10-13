@@ -151,6 +151,12 @@ Cada roteiro possui um `.sh` correspondente, com etapas selecionáveis e logs se
 
 **Duas GPUs de 8 GB não viram automaticamente uma GPU de 16 GB.** O treino DDP replica o aluno por placa. No Lab 05, a inferência do professor pode distribuir camadas entre as duas placas; ela ocorre separadamente do treino. As APIs mantêm pesos na VRAM mesmo ociosas e devem ser encerradas antes de treinar.
 
+## Explorar os dados na interface
+
+O [avaliador](avaliador/README.md#explorar-os-datasets-dos-cinco-laboratórios) tem uma área **Explorar datasets** em `/datasets`, com acesso aos cinco laboratórios, busca, filtros por conjunto, exemplos aleatórios e gabaritos que podem ser revelados. Cada tarefa tem um leitor próprio, incluindo imagem de recibo e tabelas financeiras. A exploração não carrega modelos nem usa GPU.
+
+Os dados preparados são a versão padrão. Para labs ainda não preparados, é possível importar fontes originais, explicitamente identificadas, sem executar OCR ou treino. Explorar um gabarito serve para estudo; ele continua fora da entrada da avaliação dos modelos.
+
 ## Organização do repositório
 
 | Caminho | Conteúdo |

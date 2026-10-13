@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class AvaliadorIntegrationTest {
     static final HttpServer upstream;
+    static final AtomicReference<String> lastQuery = new AtomicReference<>();
     static final AtomicReference<String> lastHistory = new AtomicReference<>();
     static final ObjectMapper mapper = new ObjectMapper();
     static {
@@ -31,6 +32,7 @@ class AvaliadorIntegrationTest {
             upstream = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             upstream.createContext("/", exchange -> {
                 String path = exchange.getRequestURI().getPath();
+                lastQuery.set(exchange.getRequestURI().getRawQuery());
                 if (exchange.getRequestMethod().equals("POST")) {
                     if (exchange.getRequestHeaders().getFirst("Content-Length") == null) {
                         exchange.sendResponseHeaders(400, -1);
@@ -41,7 +43,9 @@ class AvaliadorIntegrationTest {
                 }
                 String body = switch (path) {
                     case "/health" -> "{\"status\":\"ready\",\"classes\":31}";
-                    case "/catalog" -> "{\"labels\":[\"retrieve_utterance\"],\"actions\":[]}";
+                    case "/catalog" -> "{\"labels\":[\"retrieve_utterance\"],\"actions\":[],\"labs\":[{\"id\":\"01\"}]}";
+                    case "/samples" -> "{\"total\":1,\"items\":[{\"ordinal\":0,\"identifier\":\"tools:1\"}]}";
+                    case "/detail" -> "{\"id\":\"tools:1\",\"question\":\"Weather in Paris\"}";
                     case "/examples" -> "{\"examples\":[]}";
                     case "/context" -> "{\"prompt\":\"literal {history} prompt\",\"eligible\":true,\"input_tokens\":12,\"policies\":[],\"labels\":[\"retrieve_utterance\"]}";
                     case "/predict" -> "{\"context\":{\"eligible\":true},\"slm\":{\"sql\":\"SELECT 1\",\"status\":\"ok\"}}";
@@ -62,6 +66,7 @@ class AvaliadorIntegrationTest {
     static void settings(DynamicPropertyRegistry registry) {
         registry.add("avaliador.inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.sql-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
+        registry.add("avaliador.dataset-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.openai-api-key", () -> "");
     }
     @Autowired MockMvc mvc;
@@ -106,6 +111,18 @@ class AvaliadorIntegrationTest {
             .andExpect(status().isBadRequest());
     }
 
+
+    @Test void datasetExplorerIsIndependentAndEncodesSearchOnce() throws Exception {
+        mvc.perform(get("/datasets")).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Mostrar resposta esperada")));
+        mvc.perform(get("/api/datasets")).andExpect(status().isOk()).andExpect(jsonPath("$.labs[0].id").value("01"));
+        mvc.perform(get("/api/datasets/samples").param("dataset","01-prepared-train").param("q","Paris weather"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+        String query=java.net.URLDecoder.decode(lastQuery.get(),StandardCharsets.UTF_8);
+        assertThat(query).contains("q=Paris weather");
+        mvc.perform(get("/api/datasets/detail").param("dataset","01-prepared-train").param("ordinal","0"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.question").value("Weather in Paris"));
+    }
 
     @Test void sqlUsesSeparateContractAndRejectsGoldAndPaths() throws Exception {
         mvc.perform(get("/api/lab02/status")).andExpect(jsonPath("$.available").value(true));

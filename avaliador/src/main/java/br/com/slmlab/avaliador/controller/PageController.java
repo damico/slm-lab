@@ -19,6 +19,12 @@ public class PageController {
         return "index";
     }
 
+    @GetMapping("/datasets")
+    public String datasets(Model model) {
+        model.addAttribute("active", "datasets");
+        return "datasets";
+    }
+
     @GetMapping("/labs/{id}")
     public String lab(@PathVariable String id, Model model) {
         Lab lab = find(id);

@@ -3,6 +3,7 @@
 <head><title>Visão geral</title></head>
 <body><main layout:fragment="content">
 <div class="page-heading"><div><p class="eyebrow">EXPERIMENTAR, MEDIR, ENTENDER</p><h1>O poder dos pequenos modelos<span class="accent">.</span></h1><p class="subtitle">Cinco especializações. Um espaço para descobrir o que muda com o ajuste.</p></div><a class="btn btn-accent" th:href="@{/labs/04}">Testar decisões <svg class="icon"><use href="#i-arrow"/></svg></a></div>
+<div class="dataset-home-link"><a class="btn btn-outline-secondary" th:href="@{/datasets}"><svg class="icon"><use href="#i-book"/></svg>Explorar os dados dos cinco laboratórios</a><span class="small muted">Veja o que entra no modelo e qual resposta ele aprende.</span></div>
 <div class="stats-grid">
   <article class="panel stat-card"><div class="stat-label">Acurácia do especialista <svg class="icon"><use href="#i-north"/></svg></div><div class="stat-value">85,45<span>%</span><span class="pill green">+20,32 pp</span></div><p>Lab 04 / comparação com o Qwen base</p><div class="mini-bars" aria-hidden="true"><i style="height:32%"></i><i style="height:48%"></i><i style="height:60%"></i><i style="height:76%"></i><i style="height:90%"></i></div></article>
   <article class="panel stat-card"><div class="stat-label">Mediana de inferência <svg class="icon"><use href="#i-bolt"/></svg></div><div class="stat-value">163<span>ms</span></div><p>Qwen3-1.7B especializado / benchmark</p><span class="stat-caption">p95: 210 ms por decisão</span></article>

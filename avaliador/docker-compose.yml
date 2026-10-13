@@ -6,6 +6,7 @@ services:
     network_mode: host
     environment:
       AVALIADOR_PORT: ${AVALIADOR_PORT:-8080}
+      DATASET_API_URL: ${DATASET_API_URL:-http://127.0.0.1:8086}
       LAB02_API_URL: ${LAB02_API_URL:-http://127.0.0.1:8082}
       LAB04_API_URL: ${LAB04_API_URL:-http://127.0.0.1:8084}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
