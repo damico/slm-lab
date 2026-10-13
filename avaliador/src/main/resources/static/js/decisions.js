@@ -5,7 +5,7 @@
   const storeKey = 'slm-lab04-tests-v1';
   const state = {
     history:[{role:'agent',text:'How can I help you today?'},{role:'customer',text:'I would like to return a shirt because it is the wrong size.'}],
-    catalog:null, examples:[], expected:null, origin:'Caso livre / exemplo editável',
+    catalog:null, examples:[], expected:null, outcome:null, origin:'Caso livre / exemplo editável',
     result:null, busy:false, records:[], chart:null, loaded:false
   };
   try { const records = JSON.parse(localStorage.getItem(storeKey) || '[]'); if (Array.isArray(records)) state.records = records.slice(0,20); } catch (_) {}
@@ -25,11 +25,15 @@
     $('probabilities-panel').hidden = true;
     $('comparison-panel').hidden = true;
     $('explanation-panel').hidden = true;
+    $('outcome-panel').hidden = true;
+    $('journey-panel').hidden = true;
     $('result-state').textContent = 'Aguardando teste';
     $('result-state').className = 'pill subtle';
   }
   function edited() {
     state.expected = null;
+    state.outcome = null;
+    $('example-select').value = '';
     state.origin = 'Caso livre / histórico editado';
     $('example-origin').textContent = state.origin;
     clearResult();
@@ -84,6 +88,7 @@
     document.querySelectorAll('#timeline input,#timeline textarea,#timeline select,#timeline button').forEach(el=>el.disabled=value);
     ['add-event','import-json'].forEach(id=>$(id).disabled=value);
     $('load-example').disabled = value || !state.examples.length;
+    $('example-select').disabled = value || !state.examples.length;
     $('compare-openai').disabled = value || !window.labStatus?.comparison_enabled;
     $('decide').disabled = value || !window.labStatus?.available;
     $('decide').lastChild.textContent = value ? ' Executando teste...' : ' Decidir próximo passo';
@@ -101,6 +106,9 @@
       const [catalog,examples] = await Promise.all([getJson('/api/lab04/catalog'),getJson('/api/lab04/examples')]);
       state.catalog = catalog;
       state.examples = examples.examples || [];
+      const blank=element('option','','Selecionar caso ABCD');blank.value='';
+      $('example-select').replaceChildren(blank);
+      state.examples.forEach(example=>{const option=element('option','',`${example.name} / ${example.id||'ABCD'}`);option.value=example.name;$('example-select').append(option);});
       renderTimeline();setBusy(state.busy);
     } catch (failure) { state.loaded=false;error(failure.message); }
   }
@@ -171,15 +179,61 @@
     $('comparison-match').textContent = comparison.status !== 'ok' ? 'Rótulo inválido' : (comparison.choice===decision?.choice?'Mesma escolha':'Escolhas diferentes');
     $('comparison-detail').textContent = `${seconds(comparison.latency_s)} / ${comparison.prompt_tokens} tokens de entrada / ${comparison.completion_tokens} de saída / custo estimado: US$ ${Number(comparison.estimated_cost_usd).toFixed(6)}`;
   }
+  const actionDescriptions = {
+    'retrieve_utterance':'Conversar com o cliente ou coletar informações',
+    'search-timing':'Consultar prazos e validade',
+    'search-faq':'Consultar as perguntas frequentes',
+    'pull-up-account':'Consultar a conta do cliente',
+    'verify-identity':'Verificar a identidade do cliente',
+    'validate-purchase':'Validar a compra',
+    'offer-refund':'Oferecer reembolso',
+    'update-order':'Atualizar o pedido',
+    'update-account':'Atualizar a conta',
+    'record-reason':'Registrar o motivo do atendimento',
+    'notify-team':'Notificar a equipe responsável',
+    'send-link':'Enviar um link',
+    'search-policy':'Consultar a política aplicável',
+    'shipping-status':'Consultar o estado do envio',
+    'subscription-status':'Consultar o estado da assinatura'
+  };
+  function renderOutcome(result) {
+    $('outcome-panel').hidden=false;
+    $('journey-panel').hidden=false;
+    const decision=result.slm;
+    $('simple-choice').textContent=actionDescriptions[decision.choice] || (decision.choice?`Próxima ação: ${decision.choice}`:'Revisar o atendimento');
+    $('simple-guidance').textContent=decision.reason==='context_exceeded'
+      ? 'O histórico ultrapassou o limite de entrada. Encaminhe o caso para um atendente.'
+      : (decision.requires_review?'Um atendente deve revisar esta recomendação antes de prosseguir.':`Etapa recomendada: ${decision.choice}. O sistema consumidor decide como responder ou executar a ação.`);
+    $('simple-review').textContent=decision.requires_review?'Revisão indicada':'Recomendação acima do limiar';
+    $('simple-review').className='pill '+(decision.requires_review?'yellow':'green');
+    const outcome=state.outcome;
+    $('delivered-messages').replaceChildren();
+    const replies=outcome?.delivered_messages||[];
+    $('outcome-empty').hidden=!!replies.length;
+    $('outcome-empty').textContent=outcome?'O registro não contém uma mensagem posterior do atendente. Veja as ações e o desfecho no diagrama.':'Este histórico não possui continuação registrada. Selecione um exemplo ABCD para consultar a resposta efetivamente entregue.';
+    replies.forEach(message=>{const quote=element('blockquote','delivered-message');quote.append(element('p','',message.text),element('small','',`Atendente / ${message.id}`));$('delivered-messages').append(quote);});
+    $('recorded-action').hidden=!outcome?.last_action;
+    if(outcome?.last_action){$('recorded-action-label').textContent=outcome.last_action.action;$('recorded-action-text').textContent=outcome.last_action.text;}
+    $('outcome-source').textContent=outcome?`Fonte: ${outcome.source} / ${outcome.id}. Este registro mostra o que aconteceu no dataset e fica fora do prompt do modelo.`:'';
+    window.LabJourney?.render(state.history,result,outcome);
+  }
+  function chooseExample(example) {
+    if(!example)return;
+    state.history=structuredClone(example.history);state.expected=example.expected;state.outcome=example.outcome||null;
+    state.origin=`ABCD / ${example.name} / ${example.id||'demonstração'}`;
+    $('example-select').value=example.name;
+    clearResult();error('');renderTimeline();
+  }
   function showFullResult(result) {
     state.result = result;
     renderContext(result.context);renderDecision(result.slm,result.context);
     if (result.comparison) renderComparison(result.comparison,result.slm);
     else $('comparison-panel').hidden = true;
+    renderOutcome(result);
     $('result-json').value = JSON.stringify(result,null,2);
   }
   function saveRecord(payload,result) {
-    const record={id:Date.now(),time:new Date().toISOString(),history:payload.history,expected:state.expected,origin:state.origin,result};
+    const record={id:Date.now(),time:new Date().toISOString(),history:payload.history,expected:state.expected,outcome:state.outcome,origin:state.origin,result};
     state.records.unshift(record);state.records=state.records.slice(0,20);
     try {localStorage.setItem(storeKey,JSON.stringify(state.records));} catch (_) { $('stage-message').textContent+=' Histórico não salvo: armazenamento do navegador cheio.'; }
     renderRecords();
@@ -191,7 +245,7 @@
       if (!record.result?.slm || !Array.isArray(record.history)) return;
       const button=element('button','session-record');button.type='button';
       button.append(element('small','',new Date(record.time).toLocaleString('pt-BR')),element('strong','',record.result.slm.choice||'Revisão'),element('small','',`${percent(record.result.slm.confidence)} / ${record.history.length} eventos`));
-      button.addEventListener('click',()=>{if(state.busy)return;state.history=structuredClone(record.history);state.expected=record.expected;state.origin=record.origin||'Teste restaurado';renderTimeline();showFullResult(record.result);$('stage-message').textContent='Resultado salvo restaurado. Execute novamente para uma nova inferência.';});
+      button.addEventListener('click',()=>{if(state.busy)return;state.history=structuredClone(record.history);state.expected=record.expected;state.outcome=record.outcome||state.examples.find(example=>JSON.stringify(example.history)===JSON.stringify(record.history))?.outcome||null;state.origin=record.origin||'Teste restaurado';renderTimeline();showFullResult(record.result);$('stage-message').textContent='Resultado salvo restaurado. Execute novamente para uma nova inferência.';});
       $('session-history').append(button);
     });
   }
@@ -238,16 +292,16 @@
   $('load-example').addEventListener('click',()=>{
     if(!state.examples.length)return;
     const example=state.examples[Math.floor(Math.random()*state.examples.length)];
-    state.history=structuredClone(example.history);state.expected=example.expected;state.origin=`ABCD / ${example.name} / ${example.id||'demonstração'}`;
-    clearResult();error('');renderTimeline();
+    chooseExample(example);
   });
+  $('example-select').addEventListener('change',()=>chooseExample(state.examples.find(example=>example.name===$('example-select').value)));
   $('import-json').addEventListener('click',()=>{
     try {const payload=JSON.parse($('history-json').value);if(!payload || Object.keys(payload).length!==1 || !payload.history)throw new Error('Envie um objeto contendo somente history.');validate(payload.history);state.history=structuredClone(payload.history);edited();renderTimeline();error('');}
     catch(failure){error(failure.message);}
   });
   $('download-result').addEventListener('click',()=>{
     if(!state.result)return;
-    const data={history:state.history,result:state.result};
+    const data={history:state.history,result:state.result,reference_outcome:state.outcome};
     const url=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
     const link=element('a');link.href=url;link.download='slm-lab04-teste.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   });

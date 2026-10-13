@@ -79,9 +79,26 @@ Referências: [Spring AI ChatClient](https://docs.spring.io/spring-ai/reference/
 - Sorteia exemplos reais de `data/demo/case_*.json`; o gabarito é mostrado depois da inferência e fica fora da entrada enviada aos modelos.
 - Atualiza os estágios por SSE: montagem do contexto, resultado do SLM e comparação opcional.
 - Mostra escolha, confiança, limiar, revisão, 31 probabilidades, regras recuperadas, janela do histórico e contagem de tokens do Qwen.
+- Acrescenta uma leitura simples da orientação ao atendente e, nos exemplos ABCD, as mensagens realmente entregues ao cliente e a última ação registrada.
+- Mostra uma árvore interativa com histórico observado, etapas da inferência e continuação do ABCD. Cada nó abre seu conteúdo; zoom, arraste e expansão ajudam a acompanhar atendimentos longos.
 - Permite importar `{"history":[...]}`, inspecionar o prompt exato e exportar o teste completo em JSON.
 - Guarda até 20 testes neste navegador, com restauração do atendimento e do resultado salvo. Alterar o histórico remove o resultado anterior da tela.
 - Alterna tema claro/escuro e se adapta a telas pequenas.
+
+## Resposta entregue e evolução do exemplo
+
+Use o seletor **Selecionar caso ABCD** para abrir um caso específico, como `case_01 / 4989:5`. Após a inferência, a seção **Resultado em linguagem simples** mostra a recomendação do SLM separada da resposta registrada no dataset. Nesse caso, o ABCD registra `search-timing` e informa ao cliente que o código promocional expira sete dias após sua emissão.
+
+A seção **Evolução do atendimento** tem três ramos: eventos conhecidos pelo modelo, processamento/recomendação do teste e sequência humana registrada depois do ponto de teste. Os eventos posteriores e o gabarito permanecem fora do prompt do SLM e da comparação OpenAI. A continuação aparece depois do resultado; ela não afirma que o avaliador executou as ações. O diagrama é SVG local e interativo, sem dependência de CDN.
+
+`start-lab04.sh` prepara automaticamente `data/demo_outcomes.json` a partir do ABCD já baixado quando esse arquivo ainda não existe. Se você usa uma pasta de fonte diferente, configure `LAB04_RAW_DIR`. Também pode preparar esse arquivo separadamente:
+
+```bash
+~/slm-labs/.venv/bin/python ~/git/slm-lab/scripts/lab04-decisoes/demo_outcomes.py \
+  --data ~/lab04-decisoes/data --raw ~/lab04-decisoes/raw/abcd
+```
+
+A preparação normal de dados também passa a gerar esses registros. O arquivo liga cada exemplo à sua continuação e confere o histórico por hash; editar o atendimento elimina a associação com o desfecho original. Nos históricos livres, a tela apresenta a recomendação e os eventos observados, e informa que não há resposta posterior registrada. Testes antigos salvos no navegador podem ser associados ao registro atual quando o histórico coincide com um exemplo preparado.
 
 A indicação de revisão e as probabilidades pertencem ao classificador calibrado. A referência generativa OpenAI retorna apenas um rótulo neste comparativo. `retrieve_utterance` indica conversar/coletar informação; a recomendação não executa ações.
 
@@ -122,4 +139,4 @@ Para conferir a inferência real, inicie `start-lab04.sh` e execute um caso ABCD
 
 ## Capturas da interface
 
-[Dashboard](docs/dashboard.png) e [Lab 04 com inferência real](docs/lab04.png).
+[Dashboard](docs/dashboard.png), [Lab 04 com inferência real](docs/lab04.png), [resposta entregue](docs/lab04-desfecho.png) e [evolução do atendimento](docs/lab04-evolucao.png).

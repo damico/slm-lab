@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from decision_core import ContextBuilder, file_hash, read_json, softmax, tokenizer
 from decision_lab import Predictor
+from demo_outcomes import history_fingerprint
 
 
 class DecisionEngine:
@@ -44,14 +45,21 @@ class DecisionEngine:
     def examples(self):
         expected_path = self.data / "demo_expected.json"
         expected = read_json(expected_path) if expected_path.exists() else []
+        outcomes_path = self.data / "demo_outcomes.json"
+        outcomes = read_json(outcomes_path) if outcomes_path.exists() else {}
         result = []
-        for index, path in enumerate(sorted((self.data / "demo").glob("case_*.json"))):
+        for path in sorted((self.data / "demo").glob("case_*.json")):
+            index = int(path.stem.removeprefix("case_"))
             payload = read_json(path)
             if set(payload) != {"history"}:
                 raise ValueError("Exemplo de demonstracao invalido.")
             reference = expected[index] if index < len(expected) else {}
+            outcome = outcomes.get(reference.get("id"))
+            if outcome and outcome.get("history_sha256") != history_fingerprint(payload["history"]):
+                outcome = None
             result.append({"name": path.stem, "history": payload["history"],
-                           "expected": reference.get("expected"), "id": reference.get("id")})
+                           "expected": reference.get("expected"), "id": reference.get("id"),
+                           "outcome": outcome})
         return {"examples": result}
 
     def decide(self, payload):

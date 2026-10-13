@@ -11,6 +11,11 @@ for LAB_FILE in "$LAB_VENV_DIR/bin/python" "$LAB04_DIR/data/bundle.json" "$LAB04
   fi
 done
 mkdir -p "$AVALIADOR_DIR/logs"
+LAB04_RAW_DIR="${LAB04_RAW_DIR:-$LAB04_DIR/raw/abcd}"
+if [[ ! -f "$LAB04_DIR/data/demo_outcomes.json" && -f "$LAB04_DIR/data/demo_expected.json" && -f "$LAB04_RAW_DIR/abcd_v1.1.json.gz" ]]; then
+  "$LAB_VENV_DIR/bin/python" "$LAB_REPO_DIR/scripts/lab04-decisoes/demo_outcomes.py" \
+    --data "$LAB04_DIR/data" --raw "$LAB04_RAW_DIR"
+fi
 LAB04_LOG="$AVALIADOR_DIR/logs/python-$(date +%Y%m%d-%H%M%S)-$$.log"
 echo "Carregando o adaptador real de $LAB04_DIR/runs/main/final_adapter"
 echo "Log: $LAB04_LOG"

@@ -69,6 +69,7 @@ class AvaliadorIntegrationTest {
         mvc.perform(get("/")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("85,45")));
         mvc.perform(get("/labs/04")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("timeline")));
         mvc.perform(get("/labs/02")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("Em preparação")));
+        mvc.perform(get("/js/journey.js")).andExpect(status().isOk());
         mvc.perform(get("/docs/04")).andExpect(status().isOk());
         mvc.perform(get("/webjars/bootstrap/5.3.7/css/bootstrap.min.css")).andExpect(status().isOk());
         mvc.perform(get("/webjars/chart.js/4.5.1/dist/chart.umd.js")).andExpect(status().isOk());

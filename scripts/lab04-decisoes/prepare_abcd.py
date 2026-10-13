@@ -4,6 +4,7 @@ import gzip
 import json
 import urllib.request
 from pathlib import Path
+from demo_outcomes import build_outcomes
 from decision_core import (MODEL, ABCD_REVISION, ContextBuilder, conversation_cases,
     digest, file_hash, policy_documents, read_json, save_json, tokenizer, write_rows)
 
@@ -106,6 +107,7 @@ def main():
     for i, d in enumerate(demos):
         save_json(out / "demo" / f"case_{i:02d}.json", {"history": d["history"]})
     save_json(out / "demo_expected.json", [{"id": d["id"], "expected": d["expected"]} for d in demos])
+    save_json(out / "demo_outcomes.json", build_outcomes(original, demos))
 
 
 if __name__ == "__main__":

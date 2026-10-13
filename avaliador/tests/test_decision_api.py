@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'scripts' / 'lab04-decisoes'))
 from serve_decisions import DecisionEngine, create_server
+from demo_outcomes import history_fingerprint
 
 
 class Builder:
@@ -78,13 +79,34 @@ class DecisionApiTest(unittest.TestCase):
         self.assertEqual(examples[0]['expected'], 'refund')
         self.assertNotIn('expected', examples[0]['history'][0])
 
+    def test_reference_outcome_is_exposed_only_for_matching_history(self):
+        demo = self.engine.data / 'demo'
+        demo.mkdir()
+        history = [{'role': 'customer', 'text': 'Hello'}]
+        path = demo / 'case_01.json'
+        path.write_text(json.dumps({'history': history}))
+        (self.engine.data / 'demo_expected.json').write_text(json.dumps([
+            {'id': 'other:1', 'expected': 'refund'}, {'id': '1:2', 'expected': 'refund'}]))
+        outcome = {'id': '1:2', 'history_sha256': history_fingerprint(history),
+                   'delivered_messages': [{'role': 'agent', 'text': 'Recorded reply'}]}
+        (self.engine.data / 'demo_outcomes.json').write_text(json.dumps({'1:2': outcome}))
+        self.assertEqual(self.call('/examples')['examples'][0]['outcome'], outcome)
+        path.write_text(json.dumps({'history': [{'role': 'customer', 'text': 'Edited'}]}))
+        self.assertIsNone(self.call('/examples')['examples'][0]['outcome'])
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.call('/context', {'history': history, 'outcome': outcome})
+        self.assertEqual(error.exception.code, 400)
+        error.exception.close()
+
     def test_rejects_gold_and_unknown_routes(self):
         with self.assertRaises(urllib.error.HTTPError) as error:
             self.call('/context', {'history':[], 'label':'refund'})
         self.assertEqual(error.exception.code, 400)
+        error.exception.close()
         with self.assertRaises(urllib.error.HTTPError) as error:
             self.call('/missing')
         self.assertEqual(error.exception.code, 404)
+        error.exception.close()
 
 
 if __name__ == '__main__':
