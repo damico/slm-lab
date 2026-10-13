@@ -1,5 +1,7 @@
 # SLM Lab: especialização, avaliação e destilação de pequenos modelos
 
+![Diagrama geral dos laboratórios de SLMs](diagramas/readme-dia.jpeg)
+
 Este projeto reúne **cinco laboratórios para uma aula sobre o uso de pequenos modelos de linguagem (SLMs)**. Partimos de modelos pré-treinados, especializamos tarefas e medimos o que mudou em relação ao modelo original e a uma referência de comparação.
 
 A base dos especialistas é o **Qwen3-1.7B**, ajustado com **QLoRA**. O quinto laboratório acrescenta um **Qwen3-8B como professor**, gerando supervisão para destilação offline. Os roteiros foram preparados para Ubuntu, Python 3.11/3.12 e duas RTX 3070 de 8 GB, com um único ambiente virtual.
