@@ -1,0 +1,22 @@
+flowchart TD
+  F[FinQA na revisão fixada] --> C[Contexto e pergunta / TF-IDF sem gabarito]
+  C --> T[Professor Qwen3-8B / 4 bits / camadas nas GPUs]
+  T --> J[JSON de evidências e programa / treino somente]
+  J --> V[Validar sintaxe, origem e execução contra gabarito]
+  V --> R[Inspeção de amostra / audit e hashes]
+  R --> P[Mesmos IDs aprovados]
+  P --> S[Alvos originais / SFT]
+  P --> D[Alvos do professor / destilação]
+  S --> AS[Aluno Qwen3-1.7B / QLoRA]
+  D --> AD[Aluno Qwen3-1.7B / QLoRA]
+  X[Teste nativo completo / sem fontes escolhidas pelo gabarito] --> B[Aluno original]
+  X --> AS
+  X --> AD
+  X --> PT[Professor]
+  B --> E[Mesmo executor e mesmas regras de contexto]
+  AS --> E
+  AD --> E
+  PT --> E
+  E --> M[Resultado, validade, cobertura, latência, VRAM]
+  E --> I[Bootstrap por documento / efeito da destilação]
+  AD --> A[API local / aluno sem professor / cálculo e fontes]

@@ -1,6 +1,6 @@
 # Preparação geral dos laboratórios de SLMs
 
-Execute este guia uma vez antes dos laboratórios 01 a 04. Todos usam um único ambiente virtual em `~/slm-labs/.venv`, com as versões já fixadas nos roteiros. Cada laboratório mantém sua própria pasta de scripts, dados, logs e checkpoints: alguns scripts têm o mesmo nome e precisam ficar separados.
+Execute este guia uma vez antes dos laboratórios 01 a 05. Todos usam um único ambiente virtual em `~/slm-labs/.venv`, com as versões já fixadas nos roteiros. Cada laboratório mantém sua própria pasta de scripts, dados, logs e checkpoints: alguns scripts têm o mesmo nome e precisam ficar separados.
 
 ## 1. Conferir a máquina
 
@@ -13,7 +13,7 @@ nvidia-smi topo -m
 df -h ~
 ```
 
-O espaço necessário para dados e checkpoints está descrito em cada laboratório; um ambiente único reduz a duplicação de pacotes, mas os dados dos quatro experimentos continuam ocupando espaço. Execute os treinos em sequência quando usarem as duas GPUs.
+O espaço necessário para dados e checkpoints está descrito em cada laboratório; um ambiente único reduz a duplicação de pacotes, mas os dados dos cinco experimentos continuam ocupando espaço. Execute os treinos em sequência quando usarem as duas GPUs.
 
 Esta receita mantém o PyTorch 2.7.1 com runtime cu128 dos roteiros. A compatibilidade com o driver deve ser conferida na máquina antes do treino. A versão CUDA exibida por `nvidia-smi` descreve a capacidade do driver. Os wheels do PyTorch incluem seu runtime; estes laboratórios não exigem instalar um CUDA Toolkit separado.
 
@@ -47,7 +47,7 @@ python -m pip check
 python -m pip freeze > requirements-resolved.txt
 ```
 
-O arquivo [requirements.txt](requirements.txt) reúne as dependências dos quatro roteiros, incluindo o wheel CUDA 12.8 do PyTorch. O exemplo considera o repositório em `~/git/slm-lab`; ajuste a origem do comando `cp` se necessário. `requirements-resolved.txt` registra também as dependências transitivas instaladas. Execute os testes curtos de cada laboratório antes dos treinos completos.
+O arquivo [requirements.txt](requirements.txt) reúne as dependências dos cinco roteiros, incluindo o wheel CUDA 12.8 do PyTorch. O exemplo considera o repositório em `~/git/slm-lab`; ajuste a origem do comando `cp` se necessário. `requirements-resolved.txt` registra também as dependências transitivas instaladas. Execute os testes curtos de cada laboratório antes dos treinos completos.
 
 ## 4. Verificar imports e as duas GPUs
 
@@ -79,6 +79,7 @@ Depois, entre na pasta do laboratório e siga seu roteiro:
 | 02 - SQL | [SLM e BIRD](laboratorio-02-slm-sql-bird.md) |
 | 03 - Recibos | [Extração de recibos](laboratorio-03-slm-extracao-recibos.md) |
 | 04 - Decisões | [Decisões com ABCD](laboratorio-04-slm-decisoes-abcd.md) |
+| 05 - Cálculos financeiros | [FinQA e destilação offline](laboratorio-05-slm-financeiro-finqa.md) |
 
 Para continuar o laboratório 04 que você já iniciou:
 
@@ -111,4 +112,4 @@ deactivate
 
 ## Antes de iniciar outro treinamento
 
-Encerre as APIs de inferência do avaliador (Labs 02 e 04) e confira `nvidia-smi`: elas mantêm os modelos na memória mesmo ociosas. Para treinar em duas GPUs de 8 GB, ambas precisam estar livres das APIs. Depois do treino, reinicie as APIs pelos scripts de `avaliador/`. Ative explicitamente `~/slm-labs/.venv/bin/activate`; o nome `(.venv)` sozinho pode corresponder ao ambiente antigo do Lab 04. Crie `logs` na pasta do laboratório antes de comandos que usem `tee`.
+Encerre as APIs de inferência dos laboratórios (incluindo Labs 02, 04 e 05) e confira `nvidia-smi`: elas mantêm os modelos na memória mesmo ociosas. Para treinar em duas GPUs de 8 GB, ambas precisam estar livres das APIs. Depois do treino, reinicie as APIs pelos scripts de `avaliador/`. Ative explicitamente `~/slm-labs/.venv/bin/activate`; o nome `(.venv)` sozinho pode corresponder ao ambiente antigo do Lab 04. Crie `logs` na pasta do laboratório antes de comandos que usem `tee`.

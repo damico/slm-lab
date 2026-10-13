@@ -1,0 +1,25 @@
+{
+  "scope": "Auditoria CPU do executor sobre programas originais; n\u00e3o \u00e9 avalia\u00e7\u00e3o de modelos nem medi\u00e7\u00e3o CUDA",
+  "finqa_revision": "0f16e2867befa6840783e58be38c9efb9229d742",
+  "date": "2026-10-13",
+  "splits": {
+    "train": {
+      "total": 6251,
+      "reference_valid": 6246,
+      "errors": {
+        "Linha de tabela ausente ou amb\u00edgua": 3,
+        "Operando de tabela deve terminar em none": 2
+      }
+    },
+    "dev": {
+      "total": 883,
+      "reference_valid": 883,
+      "errors": {}
+    },
+    "test": {
+      "total": 1147,
+      "reference_valid": 1147,
+      "errors": {}
+    }
+  }
+}

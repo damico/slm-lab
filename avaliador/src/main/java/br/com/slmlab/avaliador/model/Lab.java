@@ -21,6 +21,10 @@ public record Lab(String id, String title, String category, String dataset, Stri
             new Lab("04", "Decisões", "Próxima ação", "ABCD / atendimento",
                 "Explore como um modelo pequeno escolhe o próximo passo de um atendimento.",
                 "Escolha, probabilidades e indicação de revisão", "laboratorio-04-slm-decisoes-abcd.md", true,
-                List.of("Histórico + regras", "Classificador calibrado", "Próxima ação + confiança")));
+                List.of("Histórico + regras", "Classificador calibrado", "Próxima ação + confiança")),
+            new Lab("05", "Cálculos financeiros", "Destilação offline", "FinQA / relatórios",
+                "Proponha cálculos verificáveis e compare um aluno destilado com seu professor.",
+                "Programa, resultado executado e evidências", "laboratorio-05-slm-financeiro-finqa.md", false,
+                List.of("Tabela + contexto + pergunta", "Professor 8B + validação", "Aluno 1.7B + cálculo verificável")));
     }
 }

@@ -2,7 +2,7 @@
 
 Aplicação Spring Boot + Thymeleaf Layout Dialect + Bootstrap 5, com comparação opcional por Spring AI. A interface usa as referências visuais fornecidas em `/tmp/design`: cartões escuros, números grandes, destaques roxos e verdes e layout responsivo. Os recursos de Bootstrap e Chart.js são WebJars locais; o navegador não consulta CDN.
 
-O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. O Lab 02 usa o adaptador SQL treinado, os 11 bancos SQLite do Mini-Dev e as respostas preservadas do benchmark. Os Labs 01 e 03 têm páginas de prévia até que seus adaptadores e APIs estejam prontos. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
+O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. O Lab 02 usa o adaptador SQL treinado, os 11 bancos SQLite do Mini-Dev e as respostas preservadas do benchmark. Os Labs 01, 03 e 05 têm páginas de prévia até que seus adaptadores e APIs estejam prontos. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
 
 ## Iniciar na máquina com as GPUs
 
@@ -175,3 +175,7 @@ Para conferir a inferência real, inicie `start-lab04.sh` e execute um caso ABCD
 ## Capturas da interface
 
 [Dashboard](docs/dashboard.png), [Lab 04 com inferência real](docs/lab04.png), [resposta entregue](docs/lab04-desfecho.png) e [evolução do atendimento](docs/lab04-evolucao.png) e [Lab 02 com SQL e tabela reais](docs/lab02.png).
+
+## Lab 05: FinQA e destilação offline
+
+O dashboard inclui uma prévia do [quinto laboratório](../laboratorio-05-slm-financeiro-finqa.md), ainda sem adaptador treinado/inferência web. O roteiro oferece professor Qwen3-8B, aluno Qwen3-1.7B, filtragem da supervisão, dois treinos com os mesmos IDs, quatro condições avaliadas e API Python após o treino. A prévia não gera respostas simuladas.

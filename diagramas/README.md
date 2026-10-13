@@ -1,6 +1,6 @@
 # Diagramas dos laboratórios
 
-Cada laboratório tem um fonte Mermaid (`.mmd`) e a imagem renderizada (`.png`). Os diagramas mostram as fases do roteiro: preparação, treino QLoRA, inferência/comparação e avaliação. Os laboratórios 03 e 04 incluem também a aplicação local e, no 04, a calibração.
+Os laboratórios 01 a 04 têm um fonte Mermaid (`.mmd`) e a imagem renderizada (`.png`); o Lab 05 disponibiliza seu fonte Mermaid. Os diagramas mostram as fases do roteiro: preparação, treino QLoRA, inferência/comparação e avaliação. Os laboratórios 03 e 04 incluem também a aplicação local e, no 04, a calibração.
 
 | Laboratório | Fonte | Imagem |
 |---|---|---|
@@ -17,3 +17,5 @@ npx -y @mermaid-js/mermaid-cli@11.4.2 -i laboratorio-03-recibos.mmd -o laborator
 ```
 
 No Ubuntu 23.10 ou posterior, o Chromium usado pelo CLI pode falhar com "No usable sandbox". Nesse caso, passe `-p puppeteer.json` com o conteúdo `{"args":["--no-sandbox"]}`.
+
+O Lab 05 tem o fonte [laboratorio-05-finqa.mmd](laboratorio-05-finqa.mmd), com professor offline, validação, pares SFT/destilados e avaliação comum. A imagem pode ser renderizada com o mesmo Mermaid CLI quando necessário.

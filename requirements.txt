@@ -1,4 +1,4 @@
-# Dependências compartilhadas dos laboratórios 01 a 04 (Python 3.11/3.12).
+# Dependências compartilhadas dos laboratórios 01 a 05 (Python 3.11/3.12).
 # O wheel CUDA 12.8 do PyTorch vem do índice oficial abaixo.
 --extra-index-url https://download.pytorch.org/whl/cu128
 torch==2.7.1+cu128
