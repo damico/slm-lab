@@ -62,8 +62,8 @@ python3 --version
 # Bloco 3 de laboratorio-02-slm-sql-bird.md: 2. Ambiente: Ubuntu e duas RTX 3070 de 8 GB
 etapa_3() {
 source "$LAB_SHARED_DIR"/.venv/bin/activate
-cp "$LAB_SHARED_DIR"/requirements.txt ./requirements.txt
-cp "$LAB_SHARED_DIR"/requirements-resolved.txt ./requirements-resolved.txt
+cp "$LAB_REPO_DIR"/requirements.txt ./requirements.txt
+python -m pip freeze > requirements-resolved.txt
 mkdir -p data runs logs results raw
 export TOKENIZERS_PARALLELISM=false
 }

@@ -85,7 +85,7 @@ Para continuar o laboratório 04 que você já iniciou:
 
 A cópia do Markdown para `./laboratorio.md` deixa uma referência do roteiro na pasta do experimento. Ela é opcional para executar os scripts, que agora estão em arquivos `.py` separados.
 
-As cópias de `~/slm-labs/requirements.txt` e `~/slm-labs/requirements-resolved.txt` para a pasta atual registram, junto dos resultados, a receita de dependências e as versões efetivamente instaladas. Elas não criam outro venv nem instalam pacotes.
+O `cp` abaixo copia a receita única de dependências diretamente do repositório para a pasta do experimento. `python -m pip freeze` registra as versões efetivamente instaladas no venv ativo. Esses comandos não dependem de arquivos de requisitos em `~/slm-labs`, não criam outro venv e não instalam pacotes. Ajuste o caminho do repositório se necessário.
 
 `cp -n` copia os scripts da pasta específica deste laboratório no repositório para a pasta atual. Isso permite executar os comandos `python arquivo.py` e resolver os imports locais, mantendo dados e resultados isolados dos outros laboratórios. A opção `-n` preserva arquivos de destino que já existem.
 
@@ -93,8 +93,8 @@ As cópias de `~/slm-labs/requirements.txt` e `~/slm-labs/requirements-resolved.
 cd ~/lab04-decisoes
 source ~/slm-labs/.venv/bin/activate
 cp ~/git/slm-lab/laboratorio-04-slm-decisoes-abcd.md ./laboratorio.md
-cp ~/slm-labs/requirements.txt ./requirements.txt
-cp ~/slm-labs/requirements-resolved.txt ./requirements-resolved.txt
+cp ~/git/slm-lab/requirements.txt ./requirements.txt
+python -m pip freeze > requirements-resolved.txt
 cp -n ~/git/slm-lab/scripts/lab04-decisoes/*.py ./
 mkdir -p raw runs results logs
 export TOKENIZERS_PARALLELISM=false

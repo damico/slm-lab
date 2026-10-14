@@ -58,8 +58,8 @@ python3 --version
 # Bloco 2 de laboratorio-04-slm-decisoes-abcd.md: 4. Preparar o ambiente nas duas placas de 8 GB
 etapa_2() {
 source "$LAB_SHARED_DIR"/.venv/bin/activate
-cp "$LAB_SHARED_DIR"/requirements.txt ./requirements.txt
-cp "$LAB_SHARED_DIR"/requirements-resolved.txt ./requirements-resolved.txt
+cp "$LAB_REPO_DIR"/requirements.txt ./requirements.txt
+python -m pip freeze > requirements-resolved.txt
 mkdir -p raw runs results logs
 export TOKENIZERS_PARALLELISM=false
 }

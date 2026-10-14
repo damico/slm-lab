@@ -52,8 +52,8 @@ python3 --version
 # Bloco 2 de laboratorio-03-slm-extracao-recibos.md: 3. Ambiente e memória
 etapa_2() {
 source "$LAB_SHARED_DIR"/.venv/bin/activate
-cp "$LAB_SHARED_DIR"/requirements.txt ./requirements.txt
-cp "$LAB_SHARED_DIR"/requirements-resolved.txt ./requirements-resolved.txt
+cp "$LAB_REPO_DIR"/requirements.txt ./requirements.txt
+python -m pip freeze > requirements-resolved.txt
 mkdir -p runs logs results raw
 export TOKENIZERS_PARALLELISM=false
 export OMP_THREAD_LIMIT=1

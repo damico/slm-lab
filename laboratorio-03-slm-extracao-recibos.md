@@ -58,12 +58,12 @@ python3 --version
 
 Prepare primeiro o ambiente compartilhado conforme [Preparação geral](preparacao-geral.md). Depois, ative-o abaixo. O runtime cu128 requer driver compatível; consulte a [matriz oficial do PyTorch](https://pytorch.org/get-started/previous-versions/) se a importação ou CUDA falhar. Não é necessário instalar um CUDA Toolkit separado para estes wheels.
 
-As cópias de `~/slm-labs/requirements.txt` e `~/slm-labs/requirements-resolved.txt` para a pasta atual registram, junto dos resultados, a receita de dependências e as versões efetivamente instaladas. Elas não criam outro venv nem instalam pacotes.
+O `cp` abaixo copia a receita única de dependências diretamente do repositório para a pasta do experimento. `python -m pip freeze` registra as versões efetivamente instaladas no venv ativo. Esses comandos não dependem de arquivos de requisitos em `~/slm-labs`, não criam outro venv e não instalam pacotes. Ajuste o caminho do repositório se necessário.
 
 ```bash
 source ~/slm-labs/.venv/bin/activate
-cp ~/slm-labs/requirements.txt ./requirements.txt
-cp ~/slm-labs/requirements-resolved.txt ./requirements-resolved.txt
+cp ~/git/slm-lab/requirements.txt ./requirements.txt
+python -m pip freeze > requirements-resolved.txt
 mkdir -p runs logs results raw
 export TOKENIZERS_PARALLELISM=false
 export OMP_THREAD_LIMIT=1

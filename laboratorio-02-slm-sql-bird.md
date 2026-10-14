@@ -41,12 +41,12 @@ Se `nvidia-smi` funciona, não há razão para reinstalar o driver para começar
 
 Prepare primeiro o ambiente compartilhado conforme [Preparação geral](preparacao-geral.md). Dentro da pasta do laboratório criada na seção 1, ative esse ambiente:
 
-As cópias de `~/slm-labs/requirements.txt` e `~/slm-labs/requirements-resolved.txt` para a pasta atual registram, junto dos resultados, a receita de dependências e as versões efetivamente instaladas. Elas não criam outro venv nem instalam pacotes.
+O `cp` abaixo copia a receita única de dependências diretamente do repositório para a pasta do experimento. `python -m pip freeze` registra as versões efetivamente instaladas no venv ativo. Esses comandos não dependem de arquivos de requisitos em `~/slm-labs`, não criam outro venv e não instalam pacotes. Ajuste o caminho do repositório se necessário.
 
 ```bash
 source ~/slm-labs/.venv/bin/activate
-cp ~/slm-labs/requirements.txt ./requirements.txt
-cp ~/slm-labs/requirements-resolved.txt ./requirements-resolved.txt
+cp ~/git/slm-lab/requirements.txt ./requirements.txt
+python -m pip freeze > requirements-resolved.txt
 mkdir -p data runs logs results raw
 export TOKENIZERS_PARALLELISM=false
 ```
