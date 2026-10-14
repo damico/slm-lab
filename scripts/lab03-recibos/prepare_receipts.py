@@ -10,6 +10,27 @@ from receipt_common import (FIELDS, extract_text, file_sha256, messages,
 DATASET = "jsdnrs/ICDAR2019-SROIE"
 
 
+def reference_fields(raw):
+    entities=raw.get('entities')
+    if not isinstance(entities,dict):raise ValueError('Formato inválido de entities: '+str(raw.get('key')))
+    expected={field:entities.get(field) for field in FIELDS}
+    if any(value is not None and not isinstance(value,str) for value in expected.values()):
+        raise ValueError('Tipo inválido no gabarito: '+str(raw.get('key')))
+    missing=[field for field,value in expected.items() if value is None or not value.strip()]
+    return expected,missing
+
+
+def reference_for_split(raw,split,excluded):
+    entities,missing=reference_fields(raw)
+    if not missing:return entities
+    key=str(raw['key'])
+    if split!='train':
+        raise ValueError('Referência de teste incompleta; teste não será filtrado: '+key+' / '+', '.join(missing))
+    excluded.append({'source_key':key,'split':split,'missing_fields':missing,'entities':entities})
+    print('Treino sem gabarito completo, excluído:',key,'/',', '.join(missing),flush=True)
+    return None
+
+
 def main():
     from datasets import Image, load_dataset
     ap = argparse.ArgumentParser()
@@ -38,6 +59,7 @@ def main():
     preprocessing = {"mode": args.mode, "lang": args.lang, "psm": args.psm,
                      "tesseract": tess, "code_sha256": file_sha256("receipt_common.py")}
     rows = {"train": [], "test": []}
+    excluded_references=[]
     seen_ids = set()
     for split in rows:
         for raw in ds[split].cast_column("image", Image(decode=False)):
@@ -45,6 +67,8 @@ def main():
             if key in seen_ids:
                 raise ValueError("Chave repetida no dataset: " + key)
             seen_ids.add(key)
+            entities=reference_for_split(raw,split,excluded_references)
+            if entities is None:continue
             uid = split + "_" + digest(key)[:16]
             image = raw["image"]
             content = image["bytes"] if image.get("bytes") is not None else Path(image["path"]).read_bytes()
@@ -62,9 +86,6 @@ def main():
                     cached.write_text(text, encoding="utf-8")
             else:
                 text = transcript
-            entities = {k: raw["entities"][k] for k in FIELDS}
-            if any(not isinstance(v, str) or not v.strip() for v in entities.values()):
-                raise ValueError("Referencia ausente: " + key)
             answer = json.dumps(entities, ensure_ascii=False)
             parse_fields(answer)
             rows[split].append({"id": uid, "source_key": key,
@@ -100,6 +121,8 @@ def main():
     # Modelo nao recebe gabarito, source_key nem company_seen_in_train: so messages.
     manifest = {"dataset": DATASET, "revision": revision, "original_counts": inventory,
                 "preprocessing": preprocessing, "split_seed": 42,
+                "excluded_train_incomplete_references":excluded_references,
+                "complete_reference_counts":{split:len(items) for split,items in rows.items()},
                 "removed_train_duplicates": removed,
                 "ocr_empty": {s: sum(r["ocr_empty"] for r in v) for s, v in splits.items()},
                 "test_known_merchant": sum(r["company_seen_in_train"] for r in splits["test"])}

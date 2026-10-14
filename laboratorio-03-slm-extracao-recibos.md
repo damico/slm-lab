@@ -103,11 +103,15 @@ Na primeira execução, há download do tokenizer e dataset, seguido de OCR em C
 
 O modo padrão treina e testa com **texto produzido pelo mesmo OCR usado pela aplicação**. Os rótulos supervisionados vêm do dataset. O modelo recebe somente o texto do recibo e as instruções: não recebe gabarito, nome do arquivo nem metadados do split.
 
+Alguns registros de treino da fonte SROIE têm campos sem anotação. `X51005433522` tem `total` vazio; `X51005663280` tem `address=null`. O preparador exclui referências incompletas somente do treino e registra IDs, campos ausentes e anotações originais em `excluded_train_incomplete_references`, no relatório. Não inventa valores a partir do OCR nem transforma falta de anotação em alvo `null`. A ausência de anotação não prova que o campo esteja ausente na imagem. Os 361 registros de teste são preservados; se uma revisão futura trouxer um gabarito de teste incompleto, a preparação interrompe com uma mensagem específica.
+
+Se você recebeu `Referencia ausente`, atualize o repositório e copie explicitamente `scripts/lab03-recibos/prepare_receipts.py` para sua pasta de trabalho. Essa cópia substitui o preparador corrigido; a cópia inicial com `cp -n` preserva versões antigas. Repita a etapa 5 do `.sh`. O diretório `data` da falha inicial está vazio e pode ser reutilizado; se já contiver arquivos, escolha outro `--out` para preservar os splits. O cache OCR em `raw/ocr_cache` é reutilizado.
+
 Arquivos para conferir:
 
 | Arquivo | O que verificar |
 |---|---|
-| `data/dataset_report.json` | Revisão, tamanhos originais, duplicatas removidas, OCR vazio e fornecedores conhecidos |
+| `data/dataset_report.json` | Revisão, tamanhos originais, referências incompletas excluídas, duplicatas removidas, OCR vazio e fornecedores conhecidos |
 | `data/length_report.json` | Quantos exemplos cabem no contexto e quantos foram excluídos do treino/validação |
 | `data/train.jsonl` | Texto OCR em `text`, prompt em `messages`, resposta-alvo em `answer` |
 | `data/validation.jsonl` | Casos para decisões sobre prompt, época e hiperparâmetros |
