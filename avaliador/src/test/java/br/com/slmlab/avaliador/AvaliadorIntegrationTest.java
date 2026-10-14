@@ -66,6 +66,7 @@ class AvaliadorIntegrationTest {
     static void settings(DynamicPropertyRegistry registry) {
         registry.add("avaliador.inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.sql-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
+        registry.add("avaliador.tools-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.dataset-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.openai-api-key", () -> "");
     }
@@ -147,6 +148,24 @@ class AvaliadorIntegrationTest {
         result.getAsyncResult(5000);
         mvc.perform(asyncDispatch(result)).andExpect(status().isOk())
             .andExpect(content().string(org.hamcrest.Matchers.containsString("event:done")));
+    }
+
+    @Test void toolsPageAndContractKeepGoldOutOfInference() throws Exception {
+        mvc.perform(get("/labs/01")).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("tools-query")));
+        mvc.perform(get("/api/lab01/status")).andExpect(jsonPath("$.available").value(true));
+        mvc.perform(post("/api/lab01/predict").contentType("application/json")
+            .content("{\"query\":\"Weather?\",\"tools\":[{\"name\":\"weather\"}],\"mode\":\"recorded\"}"))
+            .andExpect(status().isOk());
+        JsonNode payload=mapper.readTree(lastHistory.get());
+        assertThat(payload.size()).isEqualTo(3);
+        assertThat(payload.has("compare")).isFalse();
+        mvc.perform(post("/api/lab01/predict").contentType("application/json")
+            .content("{\"query\":\"Weather?\",\"tools\":[{\"name\":\"weather\"}],\"gold\":[]}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/lab01/predict").contentType("application/json")
+            .content("{\"query\":\"Weather?\",\"tools\":[],\"compare\":false}"))
+            .andExpect(status().isBadRequest());
     }
 
     @Test void sseDeliversContextDecisionAndCompletion() throws Exception {

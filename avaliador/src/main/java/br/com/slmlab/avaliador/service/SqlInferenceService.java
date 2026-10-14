@@ -15,6 +15,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@org.springframework.context.annotation.Primary
 public class SqlInferenceService {
     private final RestClient client;
     private final ObjectMapper mapper;
@@ -38,7 +39,7 @@ public class SqlInferenceService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Entrada SQL inválida.");
         } catch (RestClientException error) { throw translate(error); }
     }
-    private ResponseStatusException translate(RestClientException error) {
+    protected ResponseStatusException translate(RestClientException error) {
         if (error instanceof RestClientResponseException response && response.getStatusCode().value() == 400)
             return new ResponseStatusException(HttpStatus.BAD_REQUEST, "Confira banco, pergunta e evidence.");
         return new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,

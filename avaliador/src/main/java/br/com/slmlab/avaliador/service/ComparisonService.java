@@ -65,6 +65,12 @@ public class ComparisonService {
         return result;
     }
 
+    public Map<String,Object> compareTools(JsonNode context) {
+        var result=compareSql(context);
+        result.put("text",result.remove("sql"));
+        return result;
+    }
+
     public boolean enabled() { return client != null; }
 
     public Map<String, Object> compare(JsonNode context) {

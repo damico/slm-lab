@@ -16,6 +16,7 @@ management:
       exposure:
         include: health,info
 avaliador:
+  tools-inference-url: ${LAB01_API_URL:http://127.0.0.1:8081}
   dataset-url: ${DATASET_API_URL:http://127.0.0.1:8086}
   sql-inference-url: ${LAB02_API_URL:http://127.0.0.1:8082}
   inference-url: ${LAB04_API_URL:http://127.0.0.1:8084}

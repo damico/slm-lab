@@ -271,6 +271,10 @@ Esses cenários são premissas, não medições nem tetos garantidos: o tokenize
 
 **Estimativa de tempo:** o runtime faz chamadas sequenciais. Use `tempo ≈ N × latência_média`; com 1 segundo por chamada, 1.000 chamadas levariam cerca de 16min40s e 5.000 cerca de 1h23min20s. Isso é um cenário, não uma previsão medida para xLAM. O contador mostra o ritmo observado e a projeção baseada nas respostas `ok` do piloto; erros, retentativas, limites de taxa e variações de tamanho podem aumentar o tempo.
 
+**Execução concluída em 14/10/2026:** 5.996 linhas registradas e elegíveis, com 5.992 respostas `ok`, três `api_error` (`URLError`) e uma `output_limit`. As quatro falhas permanecem nas métricas. As 5.993 respostas com `usage` somaram **2.010.445 tokens de entrada e 249.251 de saída**. Pelas tarifas configuradas de US$ 0,40/US$ 1,60 por milhão, o consumo registrado custa **US$ 1,202980**, aproximadamente **US$ 0,201 por 1.000 exemplos**. Isso exclui o smoke test e consumo não informado em retentativas; não é uma conferência da fatura.
+
+A latência média das respostas `ok` foi **1,033 s**, equivalente a **58,1 chamadas/min**. Os **103,2 minutos** do contador são uma projeção sequencial baseada nessa média, não uma duração total cronometrada: falhas, retentativas e preparação podem aumentar o tempo.
+
 `--limit` permite um piloto, mas a comparação final deve usar os mesmos IDs em todas as condições. Para repetir uma execução, use outro arquivo de saída: o script impede sobrescrita acidental e não retoma uma inferência parcial automaticamente. Depois, pontue `results/test_llm.jsonl` com `score_tools.py` e compare com os modelos locais na seção 8.
 
 **Protocolo de comparação:** todos recebem a mesma informação no prompt e produzem uma resposta textual no contrato especificado. Este script não ativa o modo nativo de tool calling ou saídas estruturadas do provedor. Um LLM com suporte nativo pode obter outro resultado; essa configuração merece uma linha adicional na comparação de produção, com seu próprio cliente e adaptação de formato. Não apresente a condição de prompt uniforme como o melhor desempenho possível de cada plataforma.
@@ -312,13 +316,34 @@ O dataset deste roteiro não assegura cobertura adequada de solicitações impos
 
 ## 9. Interpretar os resultados e demonstrar valor
 
-Cada avaliação produz `*.summary.json` e `*.cases.jsonl`. A tabela final da apresentação deve ser preenchida com seus números:
+Cada avaliação produz `*.summary.json` e `*.cases.jsonl`. Resultados medidos em 14/10/2026, com 5.996 referências válidas e elegíveis nas três condições:
 
-| Condição | N elegíveis/válidos | Acerto funcional | IC 95% | Latência p50/p95 | Pico VRAM | Custo por 1.000 solicitações |
-|---|---:|---:|---|---|---|---|
-| SLM original | medir | medir | calcular | medir | medir | estimar com premissas |
-| SLM ajustado | medir | medir | calcular | medir | medir | estimar com premissas |
-| LLM maior | mesmo conjunto | medir | calcular | medir ponta a ponta | não observável em API | calcular pelo consumo real |
+| Condição | Acertos completos | Acurácia | IC 95% Wilson | Latência p50 / p95 | Pico alocado na inferência |
+|---|---:|---:|---|---|---|
+| Qwen3-1.7B original | 3.771 / 5.996 | 62,89% | 61,66–64,11% | 3,79 / 7,76 s | 1,497 GiB |
+| Qwen3-1.7B + QLoRA | 4.875 / 5.996 | **81,30%** | 80,30–82,27% | 3,77 / 7,79 s | 1,615 GiB |
+| OpenAI `gpt-4.1-mini` | 4.516 / 5.996 | 75,32% | 74,21–76,39% | 0,92 / 1,51 s | Não observável em API |
+
+A diferença pareada especialista menos base foi **+18,41 pp**, com bootstrap 95% de **+17,26 a +19,55 pp**; contra a API, **+5,99 pp**, com intervalo de **+5,02 a +6,97 pp**. O bootstrap atual reamostra exemplos, não grupos de catálogo; ele não ajusta uma eventual correlação entre exemplos do mesmo catálogo. A comparação usa o contrato textual e o mesmo prompt, sem tool calling nativo da API. Não é uma pontuação BFCL nem uma alegação de superioridade geral sobre o LLM.
+
+| Medida auxiliar | Original | Especialista | API |
+|---|---:|---:|---:|
+| Contrato JSON válido | 97,55% | 99,82% | 99,85% |
+| Conjunto de nomes correto | 93,05% | 98,78% | 98,75% |
+| Ferramenta fora do catálogo | 0,083% | 0% | 0% |
+| Respostas usadas na latência | 5.989 | 5.991 | 5.992 |
+
+O ajuste manteve uma latência próxima da base; a API teve menor latência neste experimento. Seu custo registrado foi aproximadamente US$ 0,201 por 1.000 exemplos. O custo local não foi estimado: exige consumo elétrico e amortização do equipamento.
+
+O treino completo usou **46.364 exemplos**, duas épocas, QLoRA rank 16, LR 0,0001, acumulação 8 e duas GPUs. O `Trainer` registrou **37.858,85 s (10h30min59s)**; o runtime registrou **37.903,34 s (10h31min43s)**, incluindo a finalização. O pico alocado no rank 0 durante o treino foi **6,292 GiB**. Esses picos são medições do allocator PyTorch, não o uso total de memória mostrado pelo `nvidia-smi`.
+
+A validação demonstrativa de 50 casos teve **35 acertos (70%)** na base e **43 (86%)** no especialista. Sua latência p50/p95 foi 3,55/5,90 s e 3,65/6,24 s, respectivamente. Essa amostra não substitui o teste completo. Os metadados das três inferências confirmam o mesmo hash de entrada `95afb4d78a8e641a7f33e2a602404e8d25639d48d3f2ffc568bb35b508014015`, decodificação gulosa local, sem thinking e reserva de 512 tokens.
+
+### Experimentar no avaliador web
+
+O [avaliador](avaliador/README.md) oferece a página `/labs/01`, com solicitação, catálogo, chamadas propostas, comparação registrada e diagrama das etapas. `avaliador/start-lab01.sh` inicia por padrão o benchmark em CPU: as respostas já geradas podem ser exploradas enquanto outro laboratório ocupa as GPUs. Alterar o pedido ou catálogo remove a associação com o gabarito; uma entrada nova requer o modo de inferência real.
+
+Depois de liberar uma GPU, inicie o mesmo serviço com `LAB01_ENABLE_GPU=1 LAB01_GPU=0 bash avaliador/start-lab01.sh`. Ele carrega o adaptador de `runs/main_r16_lr1e4/final_adapter` somente na primeira inferência e o reutiliza. A primeira carga pode baixar pesos ou tokenizer ausentes do cache; eles fornecem a base pré-treinada usada pelo adaptador. O frontend distingue uma nova geração de uma resposta registrada. As ferramentas são propostas, sem execução externa. A comparação OpenAI ao vivo é opcional e utiliza Spring AI com o mesmo prompt, sem enviar o gabarito.
 
 `accuracy_eligible` usa apenas casos elegíveis e com referência válida; `accuracy_all_valid` também penaliza os casos que não couberam no contexto. Mostre ambos e a cobertura. Predições ausentes, erros de API e respostas que atingiram o limite de saída contam como falhas, não desaparecem da acurácia. Latências p50/p95 são calculadas sobre requisições bem-sucedidas; o número desse subconjunto aparece no relatório.
 

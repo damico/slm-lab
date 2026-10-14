@@ -8,7 +8,7 @@ public record Lab(String id, String title, String category, String dataset, Stri
         return List.of(
             new Lab("01", "Ferramentas", "Tool calling", "xLAM / Salesforce",
                 "Transforme uma solicitação em chamadas de funções com argumentos estruturados.",
-                "JSON com nome e argumentos das ferramentas", "laboratorio-01-slm-ferramentas-xlam.md", false,
+                "JSON com nome e argumentos das ferramentas", "laboratorio-01-slm-ferramentas-xlam.md", true,
                 List.of("Solicitação + catálogo", "SLM especializado", "Chamadas em JSON")),
             new Lab("02", "SQL", "Text-to-SQL", "BIRD / Mini-Dev",
                 "Faça perguntas a um banco e confira as respostas executando o SQL gerado.",

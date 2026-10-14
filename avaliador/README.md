@@ -2,7 +2,7 @@
 
 Aplicação Spring Boot + Thymeleaf Layout Dialect + Bootstrap 5, com comparação opcional por Spring AI. A interface usa as referências visuais fornecidas em `/tmp/design`: cartões escuros, números grandes, destaques roxos e verdes e layout responsivo. Os recursos de Bootstrap e Chart.js são WebJars locais; o navegador não consulta CDN.
 
-O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. O Lab 02 usa o adaptador SQL treinado, os 11 bancos SQLite do Mini-Dev e as respostas preservadas do benchmark. Os Labs 01, 03 e 05 têm páginas de prévia até que seus adaptadores e APIs estejam prontos. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
+O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. O Lab 02 usa o adaptador SQL treinado, os 11 bancos SQLite do Mini-Dev e as respostas preservadas do benchmark. O Lab 01 oferece comparação registrada em CPU e inferência real opcional com seu adaptador treinado. Os Labs 03 e 05 têm páginas de prévia até que seus adaptadores e APIs estejam prontos. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
 
 ## Iniciar na máquina com as GPUs
 
@@ -214,3 +214,33 @@ Para conferir a inferência real, inicie `start-lab04.sh` e execute um caso ABCD
 ## Lab 05: FinQA e destilação offline
 
 O dashboard inclui uma prévia do [quinto laboratório](../laboratorio-05-slm-financeiro-finqa.md), ainda sem adaptador treinado/inferência web. O roteiro oferece professor Qwen3-8B, aluno Qwen3-1.7B, filtragem da supervisão, dois treinos com os mesmos IDs, quatro condições avaliadas e API Python após o treino. A prévia não gera respostas simuladas.
+
+## Lab 01: chamadas de ferramentas
+
+Abra `/labs/01` para editar solicitações e catálogos, ver chamadas propostas, JSON, referência, comparação dos três modelos, etapas do teste e histórico da sessão. O resultado distingue inferência nova de benchmark registrado. Nenhuma ferramenta é executada; “contrato válido” confirma o formato JSON, sem afirmar validade semântica de todos os argumentos.
+
+```bash
+cd ~/git/slm-lab
+bash avaliador/start-lab01.sh
+```
+
+Esse modo lê os resultados locais em CPU, sem pesos ou tokenizer. Ele pode permanecer aberto durante o Lab 05. Só associa gabarito e benchmark quando a solicitação e o catálogo correspondem ao exemplo original. O botão de sorteio cobre os 5.996 exemplos; o seletor inicial mostra 60.
+
+Depois de liberar uma GPU, encerre o serviço anterior e habilite novas inferências:
+
+```bash
+LAB01_ENABLE_GPU=1 LAB01_GPU=0 bash avaliador/start-lab01.sh
+```
+
+O modelo é carregado uma vez, no primeiro teste, reutilizando o runtime e o adaptador do Lab 01. Se houver pesos ou tokenizer ausentes, o serviço os baixa para carregar a base pré-treinada do adaptador. Ao encerrar o serviço, a VRAM é liberada. Não mantenha este modo ativo junto do professor do Lab 05 nas duas placas.
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `LAB01_DIR` | `~/slm-labs/01-tools` | Dados, revisões e resultados |
+| `LAB01_ADAPTER` | `runs/main_r16_lr1e4/final_adapter` dentro do Lab 01 | Adaptador real |
+| `LAB01_API_PORT` | `8081` | API Python local |
+| `LAB01_API_URL` | `http://127.0.0.1:8081` | Conexão Spring |
+| `LAB01_ENABLE_GPU` | `0` | `1` habilita inferência sob demanda |
+| `LAB01_GPU` | `0` | GPU usada na inferência real |
+
+Para comparação paga ao vivo, configure `OPENAI_API_KEY` no servidor Spring. Spring AI envia somente as mensagens do prompt, com temperatura zero e limite de 512 tokens, e apresenta consumo/latência. O gabarito não é enviado. Benchmark registrado dispensa chave e novas chamadas. Logs Python ficam em `avaliador/logs/tools-DATA-HORA-PID.log`.
