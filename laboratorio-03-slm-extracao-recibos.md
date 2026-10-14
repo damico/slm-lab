@@ -206,10 +206,6 @@ CUDA_VISIBLE_DEVICES=0 python lab_runtime.py predict \
   --adapter runs/main/final_adapter
 ```
 
-Para o LLM maior, uma opção de comparação é **Qwen3-32B em um endpoint externo compatível com Chat Completions**, usando modo sem raciocínio explícito. O modelo maior não será treinado nem hospedado nas suas duas placas neste roteiro. Você precisa de um endpoint acessível e de seu identificador de modelo. A chamada remota envia somente o texto dos exemplos; tem o custo e as condições do seu provedor.
-
-Substitua os valores abaixo. `LLM_URL` deve ser a URL completa; o nome aceito pelo endpoint pode ser diferente do identificador no Hugging Face. O parâmetro `chat_template_kwargs` é adequado a servidores que o suportam, como configurações compatíveis de vLLM; não é universal. Adapte os parâmetros à API escolhida e confirme o modo de raciocínio na validação.
-
 Para a comparação por API, use OpenAI `gpt-4.1-mini`, com o mesmo texto OCR, prompt e contrato JSON dos modelos locais, como nos Labs 01, 02 e 04. A configuração abaixo usa temperatura zero e até 512 tokens de saída. A chave é lida sem eco; não a salve no repositório. O piloto usa três exemplos de validação e o teste completo usa 361 recibos nesta execução, totalizando **364 chamadas lógicas**; retentativas podem aumentar o número de requisições. Execute as etapas 11 e 12 do `.sh` juntas para preservar endpoint, modelo e chave.
 
 ```bash
@@ -257,13 +253,24 @@ O bootstrap pareado reporta a diferença B − A, com intervalo de 95%. Se o int
 
 Na comparação de custo, reporte custo de API observado, tempo/energia local, amortização do treinamento e volume esperado. Rodar localmente não significa custo zero. Na comparação de latência, o remoto inclui rede; o cronômetro local começa após preparar a entrada na GPU. Mostre o número de sucessos junto ao p95: latência só das respostas concluídas pode esconder falhas.
 
-Preencha esta tabela **depois** das execuções; não há números de resultado inventados no tutorial:
+Resultados locais medidos em 14/10/2026, com os 361 recibos originais do teste preservados e elegíveis. A comparação por API ainda está pendente:
 
 | Modelo | Documentos corretos/total | Total correto (%) | JSON válido (%) | p50/p95 geração | Memória ou custo medido |
 |---|---|---|---|---|---|
-| Qwen3-1.7B original | a medir | a medir | a medir | a medir | a medir |
-| Qwen3-1.7B + adaptador | a medir | a medir | a medir | a medir | a medir |
-| LLM maior, versão registrada | a medir | a medir | a medir | a medir | a medir |
+| Qwen3-1.7B original | 22 / 361 | 6,09% | 99,45% | 4,65 / 5,62 s | Ainda não tabulado |
+| Qwen3-1.7B + adaptador | 89 / 361 | 24,65% | 97,51% | 8,29 / 9,96 s | Ainda não tabulado |
+| OpenAI gpt-4.1-mini | Pendente | Pendente | Pendente | Pendente | Pendente |
+
+O ganho local de acerto completo foi **+18,56 pontos percentuais**, com maior latência de geração no especialista. Ele teve nove respostas `output_limit`, mantidas como falhas; a base concluiu todas as 361 requisições. As latências usam 361 respostas `ok` na base e 352 no especialista. JSON válido não equivale a acerto dos campos.
+
+| Campo / teste completo | Original | Especialista |
+|---|---:|---:|
+| Empresa | 42,66% | 59,28% |
+| Data | 72,02% | 80,89% |
+| Endereço | 14,96% | 40,72% |
+| Total | 54,29% | 73,41% |
+
+Na validação de 61 recibos, o acerto dos quatro campos foi 3/61 (**4,92%**) na base e 20/61 (**32,79%**) no especialista. O treino principal terminou com três épocas, saída zero e `final_adapter` salvo, em aproximadamente **732,01 s (12min12s)** segundo o runtime. Os dados preparados têm 547 registros de treino, 61 de validação e 361 de teste. A preparação registrou três casos de OCR vazio no teste, que foram preservados. Essas medidas não são uma avaliação do modo de transcrição anotada nem de um modelo de visão.
 
 ## 9. Usar a aplicação de verdade
 
