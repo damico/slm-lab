@@ -191,12 +191,18 @@ def train(args):
         trainer=SynchronizedTrainer(model=net,args=options,train_dataset=parts['train'],eval_dataset=parts['validation'],
             processing_class=tok,data_collator=DataCollatorForSeq2Seq(tok,padding=True,label_pad_token_id=-100,pad_to_multiple_of=8))
         torch.cuda.reset_peak_memory_stats();start=time.perf_counter()
+        resumed_step=read_json(Path(args.resume,'trainer_state.json'))['global_step'] if args.resume else 0
         result=trainer.train(resume_from_checkpoint=args.resume or None)
         print(f'DDP: rank local {rank}, Trainer concluído; melhor checkpoint: {trainer.state.best_model_checkpoint}',flush=True)
         if distributed:torch.distributed.barrier(device_ids=[rank])
         if trainer.is_world_process_zero():
             final=Path(args.run,'final_adapter');trainer.model.save_pretrained(final);tok.save_pretrained(final)
-            save_json(Path(args.run,'run_report.json'),{**result.metrics,'seconds':time.perf_counter()-start,
+            metrics=dict(result.metrics);updates=result.global_step-resumed_step
+            if updates==0:
+                for key in ['train_loss','train_samples_per_second','train_steps_per_second']:metrics[key]=None
+            save_json(Path(args.run,'run_report.json'),{**metrics,'seconds':time.perf_counter()-start,
+                'global_step':result.global_step,'updates_this_invocation':updates,
+                'resume_from_checkpoint':args.resume,'metrics_scope':'current_invocation',
                 'rank0_peak_allocated_gib':torch.cuda.max_memory_allocated()/2**30,'world_size':int(os.environ.get('WORLD_SIZE','1')),
                 'counts':counts,'arguments':vars(args),'config':config,
                 'best_model_checkpoint':trainer.state.best_model_checkpoint,'best_eval_loss':trainer.state.best_metric,

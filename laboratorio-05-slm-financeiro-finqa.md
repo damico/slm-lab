@@ -181,6 +181,8 @@ O fechamento correto mostra `Trainer concluído` para ambos os ranks e `Adaptado
 
 Na retomada e na seleção final, os arquivos LoRA são lidos explicitamente na CPU e copiados para os parâmetros já existentes na GPU de cada rank. Isso evita a escolha implícita de GPU pelo carregador de `safetensors`. Se o log mostrar `CUDA-capable device(s) is/are busy or unavailable` em `model.load_adapter`, esse erro pode provocar um timeout NCCL secundário no outro processo. Leia também o traceback do rank que falhou, antes de atribuir o problema à comunicação.
 
+Uma retomada com `--resume` de um checkpoint que já atingiu `--max-steps` pode apenas recarregar e exportar o melhor adaptador, sem atualizar pesos. Nesse caso, `updates_this_invocation` é zero e perda/throughput de treino ficam nulos no relatório. O tempo dessa retomada mede somente a recuperação; use o log original para medir o treino completo.
+
 Se você já tinha copiado uma versão anterior do runtime, atualize o repositório e copie explicitamente `scripts/lab05-finqa/finqa_runtime.py` para sua pasta `05-finqa`. Essa cópia substitui apenas o código corrigido, preservando datasets, saídas do professor e checkpoints. A etapa inicial preserva scripts existentes e, por isso, não aplica atualizações automaticamente. Repita somente a etapa 8 do `.sh` com `--steps 8`, usando outro diretório de run se quiser preservar o smoke anterior; não regenere a supervisão do professor.
 
 O smoke test é diagnóstico; não use seu adaptador como resultado final. Para o piloto pareado, dois treinos novos com as mesmas perguntas, semente, 40 atualizações, rank e avaliação:
