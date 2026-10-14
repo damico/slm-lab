@@ -5,7 +5,8 @@ import json
 from pathlib import Path
 from lab_runtime import MODEL, digest, finalize_splits, lock_repo, read_jsonl, write_jsonl
 from receipt_common import (FIELDS, extract_text, file_sha256, messages,
-                            normalize_field, normalize_text, parse_fields, run_text)
+                            normalize_field, normalize_text, parse_fields, run_text,
+                            preparation_lock, atomic_write)
 
 DATASET = "jsdnrs/ICDAR2019-SROIE"
 
@@ -32,7 +33,6 @@ def reference_for_split(raw,split,excluded):
 
 
 def main():
-    from datasets import Image, load_dataset
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="data")
     ap.add_argument("--mode", choices=["ocr", "transcript"], default="ocr")
@@ -41,6 +41,11 @@ def main():
     ap.add_argument("--max-seq", type=int, default=2048)
     ap.add_argument("--max-new", type=int, default=512)
     args = ap.parse_args()
+    with preparation_lock(Path.cwd()):prepare(args)
+
+
+def prepare(args):
+    from datasets import Image, load_dataset
     out = Path(args.out)
     if out.exists() and any(out.iterdir()):
         raise FileExistsError("Use uma pasta --out nova para preservar os splits.")
@@ -74,7 +79,7 @@ def main():
             content = image["bytes"] if image.get("bytes") is not None else Path(image["path"]).read_bytes()
             image_hash = hashlib.sha256(content).hexdigest()
             path = image_dir / (uid + ".img")  # Pillow identifica o formato pelos bytes.
-            path.write_bytes(content)
+            atomic_write(path,content)
             transcript = normalize_text("\n".join(raw["words"]))
             if args.mode == "ocr":
                 cache_id = digest(image_hash + json.dumps(preprocessing, sort_keys=True))
@@ -82,8 +87,10 @@ def main():
                 if cached.exists():
                     text = cached.read_text(encoding="utf-8")
                 else:
-                    text, _ = extract_text(path, args.lang, args.psm)
-                    cached.write_text(text, encoding="utf-8")
+                    try:text, _ = extract_text(path, args.lang, args.psm)
+                    except (OSError,ValueError) as error:
+                        raise RuntimeError('Falha ao ler imagem/OCR do recibo '+key+' ('+str(path)+'): '+str(error)) from error
+                    atomic_write(cached,text.encode('utf-8'))
             else:
                 text = transcript
             answer = json.dumps(entities, ensure_ascii=False)

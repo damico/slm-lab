@@ -1,5 +1,7 @@
 """OCR, contrato JSON e normalizacao compartilhados por treino e aplicacao."""
 import hashlib
+import os
+from contextlib import contextmanager
 import json
 import re
 import subprocess
@@ -18,6 +20,29 @@ SYSTEM = (
     "Do not use subtotal, cash tendered or change as the total. "
     "Join address lines with spaces. No Markdown or explanations."
 )
+
+
+@contextmanager
+def preparation_lock(folder):
+    """Protect the shared raw/images and OCR cache of one experiment folder."""
+    import fcntl
+    path=Path(folder)/'.receipt-preparation.lock'
+    with path.open('a+') as handle:
+        try:fcntl.flock(handle,fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError('Já existe uma preparação de recibos nesta pasta. Aguarde seu término; não execute duas preparações em paralelo.') from None
+        try:yield
+        finally:fcntl.flock(handle,fcntl.LOCK_UN)
+
+
+def atomic_write(path,content):
+    path=Path(path);temporary=None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent,prefix=path.name+'.',delete=False) as handle:
+            temporary=Path(handle.name);handle.write(content)
+        os.replace(temporary,path)
+    finally:
+        if temporary is not None:temporary.unlink(missing_ok=True)
 
 
 def normalize_text(text):
