@@ -27,20 +27,26 @@ Evidências são IDs como `text_3` e `table_2`. Literais numéricos precisam apa
 
 Use a [preparação geral](preparacao-geral.md) e o único `requirements.txt` do repositório. Não crie outro venv nem instale as dependências antigas do projeto FinQA: este laboratório tem seu próprio executor e runtime, compatíveis com as versões compartilhadas.
 
-O `cp -n` abaixo leva os scripts deste laboratório para sua pasta de trabalho, preservando arquivos existentes. A cópia do Markdown mantém o roteiro junto ao experimento. Os dois arquivos de requisitos registram a receita e as versões instaladas; eles não criam um ambiente novo. Ajuste `~/git/slm-lab` se seu checkout estiver em outra pasta.
+O laço abaixo copia os scripts deste laboratório somente quando o destino ainda não existe, preservando suas cópias locais sem depender de `cp -n`. A cópia do Markdown mantém o roteiro junto ao experimento. O `requirements.txt` vem diretamente do repositório e registra a receita compartilhada; `python -m pip freeze` registra as versões efetivamente instaladas no venv ativo. Esses comandos não instalam pacotes nem criam um ambiente novo. Ajuste `~/git/slm-lab` se seu checkout estiver em outra pasta.
 
 ```bash
 mkdir -p ~/slm-labs/05-finqa
 cd ~/slm-labs/05-finqa
 source ~/slm-labs/.venv/bin/activate
-cp -n ~/git/slm-lab/scripts/lab05-finqa/*.py ./
+for LAB05_SCRIPT in ~/git/slm-lab/scripts/lab05-finqa/*.py; do
+  if [ ! -e "./${LAB05_SCRIPT##*/}" ]; then
+    cp "$LAB05_SCRIPT" ./
+  fi
+done
 cp ~/git/slm-lab/laboratorio-05-slm-financeiro-finqa.md ./laboratorio.md
-cp ~/slm-labs/requirements.txt ./requirements.txt
-cp ~/slm-labs/requirements-resolved.txt ./requirements-resolved.txt
+cp ~/git/slm-lab/requirements.txt ./requirements.txt
+python -m pip freeze > requirements-resolved.txt
 mkdir -p raw logs runs results
 set -o pipefail
 export TOKENIZERS_PARALLELISM=false
 ```
+
+Se a versão anterior mostrou `cannot stat` para os requisitos, execute novamente este bloco corrigido. Ele não precisa dos arquivos em `~/slm-labs` e preserva scripts, dados e resultados existentes. O aviso de `cp -n` não impede a cópia; o laço evita essa opção.
 
 Antes de usar GPUs, encerre as APIs de inferência dos outros labs e qualquer treino anterior. Modelos ociosos continuam ocupando VRAM. Confira ambas as placas e o disco:
 

@@ -31,10 +31,14 @@ etapa_1() {
 mkdir -p "$LAB_WORK_DIR"
 cd "$LAB_WORK_DIR"
 source "$LAB_SHARED_DIR/.venv"/bin/activate
-cp -n "$LAB_REPO_DIR"/scripts/lab05-finqa/*.py ./
+for LAB05_SCRIPT in "$LAB_REPO_DIR"/scripts/lab05-finqa/*.py; do
+  if [ ! -e "./${LAB05_SCRIPT##*/}" ]; then
+    cp "$LAB05_SCRIPT" ./
+  fi
+done
 cp "$LAB_REPO_DIR"/laboratorio-05-slm-financeiro-finqa.md ./laboratorio.md
-cp "$LAB_SHARED_DIR"/requirements.txt ./requirements.txt
-cp "$LAB_SHARED_DIR"/requirements-resolved.txt ./requirements-resolved.txt
+cp "$LAB_REPO_DIR"/requirements.txt ./requirements.txt
+python -m pip freeze > requirements-resolved.txt
 mkdir -p raw logs runs results
 set -o pipefail
 export TOKENIZERS_PARALLELISM=false
