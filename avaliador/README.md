@@ -2,7 +2,7 @@
 
 Aplicação Spring Boot + Thymeleaf Layout Dialect + Bootstrap 5, com comparação opcional por Spring AI. A interface usa as referências visuais fornecidas em `/tmp/design`: cartões escuros, números grandes, destaques roxos e verdes e layout responsivo. Os recursos de Bootstrap e Chart.js são WebJars locais; o navegador não consulta CDN.
 
-O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. O Lab 02 usa o adaptador SQL treinado, os 11 bancos SQLite do Mini-Dev e as respostas preservadas do benchmark. O Lab 01 oferece comparação registrada em CPU e inferência real opcional com seu adaptador treinado. Os Labs 03 e 05 têm páginas de prévia até que seus adaptadores e APIs estejam prontos. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
+O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. O Lab 02 usa o adaptador SQL treinado, os 11 bancos SQLite do Mini-Dev e as respostas preservadas do benchmark. O Lab 01 oferece comparação registrada em CPU e inferência real opcional com seu adaptador treinado. O Lab 03 oferece imagem, OCR, campos extraídos, comparação registrada e adaptador real opcional. O Lab 05 permanece em prévia até terminar o treino completo. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
 
 ## Iniciar na máquina com as GPUs
 
@@ -246,3 +246,33 @@ O modelo é carregado uma vez, no primeiro teste, reutilizando o runtime e o ada
 | `LAB01_GPU` | `0` | GPU usada na inferência real |
 
 Para comparação paga ao vivo, configure `OPENAI_API_KEY` no servidor Spring. Spring AI envia somente as mensagens do prompt, com temperatura zero e limite de 512 tokens, e apresenta consumo/latência. O gabarito não é enviado. Benchmark registrado dispensa chave e novas chamadas. Logs Python ficam em `avaliador/logs/tools-DATA-HORA-PID.log`.
+
+## Lab 03: recibos com OCR
+
+Abra `/labs/03` para escolher um dos 361 recibos, ver a imagem e o texto OCR, conferir empresa/data/endereço/total, comparar base/especialista/API e exportar CSV/JSON. O histórico fica no navegador. Marcas por campo mostram divergências em relação à referência estrita; não são probabilidades de confiança. Dados preparados também estão disponíveis em `/datasets?lab=03`.
+
+```bash
+cd ~/git/slm-lab
+bash avaliador/start-lab03.sh
+```
+
+O modo padrão lê o benchmark e processa uploads em CPU, sem tokenizer ou pesos carregados. Ele pode rodar junto do Lab 05. O OCR aceita imagens ou PDF de uma página, até 8 MB, usando Tesseract inglês/PSM 6 ou o texto embutido do PDF, conforme `receipt_common.py`. Arquivos recebidos usam uma pasta temporária e são removidos após extrair o texto. O SLM recebe somente texto. Campos só podem ser gerados para um arquivo novo quando a inferência real estiver habilitada.
+
+Quando houver GPU livre, encerre o serviço anterior e execute:
+
+```bash
+LAB03_ENABLE_GPU=1 LAB03_GPU=0 bash avaliador/start-lab03.sh
+```
+
+O serviço carrega uma única vez o adaptador de `runs/main/final_adapter` junto da base. Pesos/tokenizer ausentes são baixados para carregar o modelo pré-treinado; com o cache completo, `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1` evita consultas à rede. Não mantenha esse modo junto do professor do Lab 05 nas duas placas.
+
+| Variável | Padrão | Uso |
+|---|---|---|
+| `LAB03_DIR` | `~/lab03-recibos` | Dados, revisões e imagens locais |
+| `LAB03_ADAPTER` | `runs/main/final_adapter` no Lab 03 | Adaptador treinado |
+| `LAB03_API_URL` | `http://127.0.0.1:8083` | Conexão Spring |
+| `LAB03_API_PORT` | `8083` | Porta da API Python |
+| `LAB03_ENABLE_GPU` | `0` | `1` habilita inferência sob demanda |
+| `LAB03_GPU` | `0` | GPU da inferência real |
+
+Logs ficam em `avaliador/logs/receipts-DATA-HORA-PID.log`. Imagens do benchmark são servidas somente dos arquivos cadastrados em `raw/images`. O backend recusa gabaritos no payload de inferência. Ao editar o OCR, a referência e as respostas registradas são removidas. A comparação OpenAI ao vivo usa a chave configurada no Spring e envia somente OCR/instruções, não imagem nem referência. O custo/latência do benchmark mede a geração após a preparação do OCR, sem confundi-la com o tempo total de um upload novo.

@@ -93,13 +93,13 @@ O laboratório começa com tabelas/textos estruturados. Não extrai PDFs automat
 
 ## Resultados registrados e estado das integrações
 
-O repositório contém resultados medidos dos **Labs 01, 02 e 04**. Os demais têm roteiros e scripts; sua existência não significa que os treinos ou avaliações completos tenham sido concluídos.
+O repositório contém resultados medidos dos **Labs 01, 02, 03 e 04**. Os demais têm roteiros e scripts; sua existência não significa que os treinos ou avaliações completos tenham sido concluídos.
 
 | Laboratório | Medidas registradas | Inferência web |
 |---|---|---|
 | 01 | Treino e teste completos: especialista 81,30%, base 62,89%, API 75,32% | Benchmark em CPU e adaptador real opcional no avaliador |
 | 02 | Treino e teste completos, com métricas e consumo registrados | Integrado ao avaliador quando a API SQL está ativa |
-| 03 | Sem resultado completo publicado no roteiro | Prévia; integração pendente |
+| 03 | Teste completo: especialista 24,65%, base 6,09%, API 7,48%; quatro campos corretos por recibo | OCR/benchmark em CPU e adaptador real opcional no avaliador |
 | 04 | Treino e teste completos, com calibração e comparação registradas | Integrado ao avaliador quando a API de decisões está ativa |
 | 05 | Executor auditado no FinQA e lógica testada; geração do professor e treino CUDA ainda não medidos | Prévia; API Python disponível para usar após o treino |
 

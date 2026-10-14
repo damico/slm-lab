@@ -15,11 +15,13 @@
     try { const response=await fetch('/api/lab02/status',{signal:AbortSignal.timeout(7000)}); sqlAvailable=response.ok && (await response.json()).available; } catch (_) {}
     let toolsAvailable=false;
     try { const response=await fetch('/api/lab01/status',{signal:AbortSignal.timeout(7000)}); toolsAvailable=response.ok && (await response.json()).available; } catch (_) {}
+    let receiptsAvailable=false;
+    try { const response=await fetch('/api/lab03/status',{signal:AbortSignal.timeout(7000)}); receiptsAvailable=response.ok && (await response.json()).available; } catch (_) {}
     document.querySelectorAll('[data-api-status]').forEach(el => {
-      const connected=[toolsAvailable?'Ferramentas':null,sqlAvailable?'SQL':null,window.labStatus.available?'Decisões':null].filter(Boolean);
+      const connected=[toolsAvailable?'Ferramentas':null,receiptsAvailable?'Recibos':null,sqlAvailable?'SQL':null,window.labStatus.available?'Decisões':null].filter(Boolean);
       el.textContent=connected.length ? connected.join(' + ')+' / conectado' : 'APIs offline';
     });
-    document.querySelectorAll('[data-status-dot]').forEach(el => el.classList.toggle('ready', window.labStatus.available||sqlAvailable||toolsAvailable));
+    document.querySelectorAll('[data-status-dot]').forEach(el => el.classList.toggle('ready', window.labStatus.available||sqlAvailable||toolsAvailable||receiptsAvailable));
     window.dispatchEvent(new CustomEvent('slm-status', {detail:window.labStatus}));
   }
   refreshStatus();

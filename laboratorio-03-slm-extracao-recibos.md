@@ -253,24 +253,36 @@ O bootstrap pareado reporta a diferença B − A, com intervalo de 95%. Se o int
 
 Na comparação de custo, reporte custo de API observado, tempo/energia local, amortização do treinamento e volume esperado. Rodar localmente não significa custo zero. Na comparação de latência, o remoto inclui rede; o cronômetro local começa após preparar a entrada na GPU. Mostre o número de sucessos junto ao p95: latência só das respostas concluídas pode esconder falhas.
 
-Resultados locais medidos em 14/10/2026, com os 361 recibos originais do teste preservados e elegíveis. A comparação por API ainda está pendente:
+Resultados locais medidos em 14/10/2026, com os 361 recibos originais do teste preservados e elegíveis. A comparação por API também foi concluída. Os [resumos e metadados originais](avaliador/docs/lab03-resultados-2026-10-14.json) foram preservados para conferência:
 
 | Modelo | Documentos corretos/total | Total correto (%) | JSON válido (%) | p50/p95 geração | Memória ou custo medido |
 |---|---|---|---|---|---|
-| Qwen3-1.7B original | 22 / 361 | 6,09% | 99,45% | 4,65 / 5,62 s | Ainda não tabulado |
-| Qwen3-1.7B + adaptador | 89 / 361 | 24,65% | 97,51% | 8,29 / 9,96 s | Ainda não tabulado |
-| OpenAI gpt-4.1-mini | Pendente | Pendente | Pendente | Pendente | Pendente |
+| Qwen3-1.7B original | 22 / 361 | 6,09% | 99,45% | 4,65 / 5,62 s | 1,451 GiB alocados |
+| Qwen3-1.7B + adaptador | 89 / 361 | 24,65% | 97,51% | 8,29 / 9,96 s | 1,552 GiB alocados |
+| OpenAI gpt-4.1-mini | 27 / 361 | 7,48% | 99,45% | 1,11 / 1,43 s | US$ 0,102756 pelo consumo informado |
 
 O ganho local de acerto completo foi **+18,56 pontos percentuais**, com maior latência de geração no especialista. Ele teve nove respostas `output_limit`, mantidas como falhas; a base concluiu todas as 361 requisições. As latências usam 361 respostas `ok` na base e 352 no especialista. JSON válido não equivale a acerto dos campos.
 
-| Campo / teste completo | Original | Especialista |
-|---|---:|---:|
-| Empresa | 42,66% | 59,28% |
-| Data | 72,02% | 80,89% |
-| Endereço | 14,96% | 40,72% |
-| Total | 54,29% | 73,41% |
+| Campo / teste completo | Original | Especialista | API |
+|---|---:|---:|---:|
+| Empresa | 42,66% | 59,28% | 47,65% |
+| Data | 72,02% | 80,89% | 37,12% |
+| Endereço | 14,96% | 40,72% | 29,64% |
+| Total | 54,29% | 73,41% | 63,99% |
 
 Na validação de 61 recibos, o acerto dos quatro campos foi 3/61 (**4,92%**) na base e 20/61 (**32,79%**) no especialista. O treino principal terminou com três épocas, saída zero e `final_adapter` salvo, em aproximadamente **732,01 s (12min12s)** segundo o runtime. Os dados preparados têm 547 registros de treino, 61 de validação e 361 de teste. A preparação registrou três casos de OCR vazio no teste, que foram preservados. Essas medidas não são uma avaliação do modo de transcrição anotada nem de um modelo de visão.
+
+A API concluiu as 361 requisições com status `ok`; duas respostas não satisfizeram o contrato JSON estrito. Foram **162.914 tokens de entrada e 23.494 de saída**, com temperatura zero, `max_tokens=512` e modelo registrado `gpt-4.1-mini`. Aplicando as tarifas configuradas de US$ 0,40/US$ 1,60 por milhão, o custo do teste foi **US$ 0,102756**, cerca de **US$ 0,285 por 1.000 recibos**. O piloto de três requisições não está incluído; esta é uma estimativa pelo consumo informado, não uma conferência da fatura. Custo local de energia e amortização não foi medido.
+
+A diferença pareada especialista menos base foi **+18,56 pp**, com bootstrap 95% de **+14,40 a +22,71 pp**; especialista menos API, **+17,17 pp**, com intervalo **+13,02 a +21,61 pp**. Os intervalos Wilson por condição foram 4,06–9,05% na base, 20,49–29,35% no especialista e 5,19–10,66% na API. As três inferências usaram o mesmo arquivo de entrada, hash `90fe2c1f516e1e7a45fc91d8b51b9715ad87f2fb7cbe57b68025c933029db159`.
+
+A métrica mantém pontuação, formato de datas e representação dos valores; uma extração semanticamente equivalente pode falhar no exact match. O endereço foi o campo de menor acerto do especialista. O ganho no benchmark não implica autonomia para registrar despesas: confira os campos e a imagem. O pico alocado no rank 0 durante o treino foi **5,034 GiB**. Picos de inferência são do allocator PyTorch e não incluem toda a memória mostrada pelo `nvidia-smi`.
+
+### Explorar os recibos no avaliador
+
+A página `/labs/03` no [avaliador web](avaliador/README.md) apresenta imagem, texto OCR, campos propostos, comparação dos três modelos, referência, evolução das etapas e exportação CSV/JSON. `bash avaliador/start-lab03.sh` inicia por padrão o benchmark e o OCR em CPU, sem carregar modelos. Assim, você pode explorar os 361 resultados e ler novos arquivos enquanto o Lab 05 usa as GPUs.
+
+Após liberar uma GPU, encerre o serviço anterior e use `LAB03_ENABLE_GPU=1 LAB03_GPU=0 bash avaliador/start-lab03.sh` para habilitar novas extrações com `runs/main/final_adapter`. O modelo é carregado somente no primeiro pedido e reutilizado. O frontend distingue geração nova de resultado registrado. Imagens/PDFs novos passam pelo mesmo extrator OCR/texto da aplicação; não há envio de pixels ao SLM nem uso de um modelo de visão. Ao editar o texto ou enviar um arquivo, o gabarito do dataset deixa de ser associado. A comparação paga por Spring AI é opcional e recebe somente as mensagens do prompt, sem gabarito.
 
 ## 9. Usar a aplicação de verdade
 

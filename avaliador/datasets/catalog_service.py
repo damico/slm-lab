@@ -249,6 +249,7 @@ def main():
     shared=Path(os.environ.get('LAB_SHARED_DIR',str(Path.home()/'slm-labs')))
     roots={lab:Path(os.environ.get('LAB'+lab+'_DIR',str(shared/folder))) for lab,folder in
         [('01','01-tools'),('02','02-sql'),('03','03-recibos'),('05','05-finqa')]}
+    roots['03']=Path(os.environ.get('LAB03_DIR',str(Path.home()/'lab03-recibos' if (Path.home()/'lab03-recibos').exists() else roots['03'])))
     roots['04']=Path(os.environ.get('LAB04_DIR',str(Path.home()/'lab04-decisoes')))
     catalog=Catalog(args.cache,roots);catalog.refresh()
     if args.index_only:return

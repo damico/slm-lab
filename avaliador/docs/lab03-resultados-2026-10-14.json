@@ -1,0 +1,236 @@
+{
+  "date": "2026-10-14",
+  "test": {
+    "original": {
+      "n_total": 361,
+      "n_reference_valid": 361,
+      "n_eligible_valid": 361,
+      "n_correct": 22,
+      "accuracy_eligible": 0.060941828254847646,
+      "wilson95_eligible": [
+        0.04059,
+        0.09054
+      ],
+      "accuracy_all_valid": 0.060941828254847646,
+      "latency_success_n": 361,
+      "p50_s": 4.649182737019146,
+      "p95_s": 5.616406821005512,
+      "api_prompt_tokens": 0,
+      "api_completion_tokens": 0,
+      "metric": "all_four_fields_normalized_exact_match",
+      "schema_valid_rate": 0.9944598337950139,
+      "field_accuracy": {
+        "company": 0.4265927977839335,
+        "date": 0.7202216066481995,
+        "address": 0.14958448753462603,
+        "total": 0.5429362880886427
+      },
+      "merchant_groups": {
+        "seen": {
+          "n": 254,
+          "document_accuracy": 0.06299212598425197
+        },
+        "unseen": {
+          "n": 107,
+          "document_accuracy": 0.056074766355140186
+        }
+      }
+    },
+    "especialista": {
+      "n_total": 361,
+      "n_reference_valid": 361,
+      "n_eligible_valid": 361,
+      "n_correct": 89,
+      "accuracy_eligible": 0.24653739612188366,
+      "wilson95_eligible": [
+        0.2049,
+        0.29351
+      ],
+      "accuracy_all_valid": 0.24653739612188366,
+      "latency_success_n": 352,
+      "p50_s": 8.286583998502465,
+      "p95_s": 9.956089834292651,
+      "api_prompt_tokens": 0,
+      "api_completion_tokens": 0,
+      "metric": "all_four_fields_normalized_exact_match",
+      "schema_valid_rate": 0.9750692520775623,
+      "field_accuracy": {
+        "company": 0.592797783933518,
+        "date": 0.8088642659279779,
+        "address": 0.407202216066482,
+        "total": 0.7340720221606648
+      },
+      "merchant_groups": {
+        "seen": {
+          "n": 254,
+          "document_accuracy": 0.2992125984251969
+        },
+        "unseen": {
+          "n": 107,
+          "document_accuracy": 0.12149532710280374
+        }
+      }
+    },
+    "llm": {
+      "n_total": 361,
+      "n_reference_valid": 361,
+      "n_eligible_valid": 361,
+      "n_correct": 27,
+      "accuracy_eligible": 0.07479224376731301,
+      "wilson95_eligible": [
+        0.05191,
+        0.10663
+      ],
+      "accuracy_all_valid": 0.07479224376731301,
+      "latency_success_n": 361,
+      "p50_s": 1.113527087989496,
+      "p95_s": 1.4341872700024396,
+      "api_prompt_tokens": 162914,
+      "api_completion_tokens": 23494,
+      "metric": "all_four_fields_normalized_exact_match",
+      "schema_valid_rate": 0.9944598337950139,
+      "field_accuracy": {
+        "company": 0.47645429362880887,
+        "date": 0.37119113573407203,
+        "address": 0.296398891966759,
+        "total": 0.6398891966759003
+      },
+      "merchant_groups": {
+        "seen": {
+          "n": 254,
+          "document_accuracy": 0.08661417322834646
+        },
+        "unseen": {
+          "n": 107,
+          "document_accuracy": 0.04672897196261682
+        }
+      }
+    }
+  },
+  "inference_metadata": {
+    "test_original": {
+      "arguments": {
+        "command": "predict",
+        "input": "data/test.jsonl",
+        "output": "results/test_original.jsonl",
+        "adapter": null,
+        "api": false,
+        "sample": false,
+        "seed": 42,
+        "limit": 0,
+        "max_new": 512
+      },
+      "input_sha256": "90fe2c1f516e1e7a45fc91d8b51b9715ad87f2fb7cbe57b68025c933029db159",
+      "revisions": {
+        "dataset:jsdnrs/ICDAR2019-SROIE": "bffe40c26759f3376ec2b3ae9031dbba54cd587c",
+        "model:Qwen/Qwen3-1.7B": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+      },
+      "llm_model": null,
+      "llm_url": null,
+      "api_extra": null,
+      "peak_allocated_gib": 1.4505834579467773,
+      "peak_reserved_gib": 2.34765625
+    },
+    "test_especialista": {
+      "arguments": {
+        "command": "predict",
+        "input": "data/test.jsonl",
+        "output": "results/test_especialista.jsonl",
+        "adapter": "runs/main/final_adapter",
+        "api": false,
+        "sample": false,
+        "seed": 42,
+        "limit": 0,
+        "max_new": 512
+      },
+      "input_sha256": "90fe2c1f516e1e7a45fc91d8b51b9715ad87f2fb7cbe57b68025c933029db159",
+      "revisions": {
+        "dataset:jsdnrs/ICDAR2019-SROIE": "bffe40c26759f3376ec2b3ae9031dbba54cd587c",
+        "model:Qwen/Qwen3-1.7B": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+      },
+      "llm_model": null,
+      "llm_url": null,
+      "api_extra": null,
+      "peak_allocated_gib": 1.552170753479004,
+      "peak_reserved_gib": 2.390625
+    },
+    "test_llm": {
+      "arguments": {
+        "command": "predict",
+        "input": "data/test.jsonl",
+        "output": "results/test_llm.jsonl",
+        "adapter": null,
+        "api": true,
+        "sample": false,
+        "seed": 42,
+        "limit": 0,
+        "max_new": 512
+      },
+      "input_sha256": "90fe2c1f516e1e7a45fc91d8b51b9715ad87f2fb7cbe57b68025c933029db159",
+      "revisions": {
+        "dataset:jsdnrs/ICDAR2019-SROIE": "bffe40c26759f3376ec2b3ae9031dbba54cd587c",
+        "model:Qwen/Qwen3-1.7B": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+      },
+      "llm_model": "gpt-4.1-mini",
+      "llm_url": "https://api.openai.com/v1/chat/completions",
+      "api_extra": {
+        "temperature": 0,
+        "max_tokens": 512
+      }
+    }
+  },
+  "training": {
+    "train_runtime": 687.58,
+    "train_samples_per_second": 2.387,
+    "train_steps_per_second": 0.153,
+    "total_flos": 8887813927862272,
+    "train_loss": 0.2628518672216506,
+    "epoch": 3,
+    "seconds": 732.0131778820069,
+    "rank0_peak_allocated_gib": 5.033782482147217,
+    "world_size": 2,
+    "arguments": {
+      "command": "train",
+      "data": "data",
+      "run": "runs/main",
+      "epochs": 3,
+      "max_steps": -1,
+      "accum": 8,
+      "rank": 16,
+      "lr": 0.0001,
+      "seed": 42,
+      "eval_limit": 256,
+      "eval_steps": 20,
+      "resume": null
+    },
+    "data_config": {
+      "max_seq": 2048,
+      "max_new": 512,
+      "splits": {
+        "train": {
+          "written": 547,
+          "excluded": 1,
+          "eligible": 547
+        },
+        "validation": {
+          "written": 61,
+          "excluded": 0,
+          "eligible": 61
+        },
+        "test": {
+          "written": 361,
+          "excluded": 0,
+          "eligible": 361
+        }
+      }
+    },
+    "revisions": {
+      "dataset:jsdnrs/ICDAR2019-SROIE": "bffe40c26759f3376ec2b3ae9031dbba54cd587c",
+      "model:Qwen/Qwen3-1.7B": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+    },
+    "data_hashes": {
+      "train": "c171cd774d8b7f410a39232fcbe8de3852297c448edc1c6dc6e69734f9d5b269",
+      "validation": "b3f75815a7d1b0c1997fc92ae0319b477b5302763483a658af4691a34c17fb8f"
+    }
+  }
+}

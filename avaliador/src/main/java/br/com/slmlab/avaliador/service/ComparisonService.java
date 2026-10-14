@@ -71,6 +71,10 @@ public class ComparisonService {
         return result;
     }
 
+    public Map<String,Object> compareReceipts(JsonNode context) {
+        return compareTools(context);
+    }
+
     public boolean enabled() { return client != null; }
 
     public Map<String, Object> compare(JsonNode context) {

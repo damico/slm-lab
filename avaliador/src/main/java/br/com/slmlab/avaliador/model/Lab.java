@@ -16,7 +16,7 @@ public record Lab(String id, String title, String category, String dataset, Stri
                 List.of("Pergunta + esquema + evidence", "SLM especializado", "SQL + avaliação de execução")),
             new Lab("03", "Recibos", "Extração estruturada", "SROIE / ICDAR2019",
                 "Extraia empresa, data, endereço e total a partir de um recibo com OCR.",
-                "JSON e CSV com quatro campos", "laboratorio-03-slm-extracao-recibos.md", false,
+                "JSON e CSV com quatro campos", "laboratorio-03-slm-extracao-recibos.md", true,
                 List.of("Imagem ou PDF", "OCR / texto", "SLM + campos estruturados")),
             new Lab("04", "Decisões", "Próxima ação", "ABCD / atendimento",
                 "Explore como um modelo pequeno escolhe o próximo passo de um atendimento.",

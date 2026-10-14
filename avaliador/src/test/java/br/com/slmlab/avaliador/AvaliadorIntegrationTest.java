@@ -67,6 +67,7 @@ class AvaliadorIntegrationTest {
         registry.add("avaliador.inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.sql-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.tools-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
+        registry.add("avaliador.receipts-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.dataset-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.openai-api-key", () -> "");
     }
@@ -165,6 +166,23 @@ class AvaliadorIntegrationTest {
             .andExpect(status().isBadRequest());
         mvc.perform(post("/api/lab01/predict").contentType("application/json")
             .content("{\"query\":\"Weather?\",\"tools\":[],\"compare\":false}"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test void receiptsPageKeepsAnnotationsOutOfModelInput() throws Exception {
+        mvc.perform(get("/labs/03")).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("receipt-upload")));
+        mvc.perform(get("/api/lab03/status")).andExpect(jsonPath("$.available").value(true));
+        mvc.perform(post("/api/lab03/predict").contentType("application/json")
+            .content("{\"text\":\"SHOP 9.90\",\"example_id\":\"test:1\",\"mode\":\"recorded\"}"))
+            .andExpect(status().isOk());
+        JsonNode payload=mapper.readTree(lastHistory.get());assertThat(payload.size()).isEqualTo(3);
+        assertThat(payload.path("example_id").asText()).isEqualTo("test:1");assertThat(payload.has("compare")).isFalse();
+        mvc.perform(post("/api/lab03/predict").contentType("application/json")
+            .content("{\"text\":\"SHOP\",\"reference\":{\"total\":\"9.90\"}}"))
+            .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/lab03/ocr").contentType("application/json")
+            .content("{\"filename\":\"receipt.png\",\"content\":\"AAAA\",\"path\":\"/etc/passwd\"}"))
             .andExpect(status().isBadRequest());
     }
 

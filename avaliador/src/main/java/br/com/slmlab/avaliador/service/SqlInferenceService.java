@@ -17,7 +17,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @org.springframework.context.annotation.Primary
 public class SqlInferenceService {
-    private final RestClient client;
+    protected final RestClient client;
     private final ObjectMapper mapper;
     public SqlInferenceService(@Value("${avaliador.sql-inference-url}") String url, ObjectMapper mapper) {
         this.mapper = mapper;
