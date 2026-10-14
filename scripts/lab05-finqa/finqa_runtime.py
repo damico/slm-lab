@@ -121,12 +121,28 @@ def predict(args):
     save_json(meta,report)
 
 
+def restore_lora_checkpoint(model, checkpoint):
+    """Read the small adapter on CPU, then copy into this rank's existing parameters."""
+    checkpoint=Path(checkpoint)
+    if not (checkpoint/'adapter_model.safetensors').is_file():
+        raise FileNotFoundError('Checkpoint LoRA local incompleto: '+str(checkpoint))
+    return model.load_adapter(str(checkpoint),model.active_adapter,
+                              torch_device='cpu',is_trainable=True)
+
+
 def train(args):
     import torch
     from datasets import Dataset
     from transformers import Trainer,TrainingArguments,DataCollatorForSeq2Seq,set_seed
     from peft import LoraConfig,get_peft_model,prepare_model_for_kbit_training
     class SynchronizedTrainer(Trainer):
+        def _load_from_checkpoint(self, resume_from_checkpoint, model=None):
+            restore_lora_checkpoint(self.model if model is None else model,resume_from_checkpoint)
+
+        def _load_best_model(self):
+            restore_lora_checkpoint(self.model,self.state.best_model_checkpoint)
+            print(f'DDP: rank local {os.environ.get("LOCAL_RANK","0")}, melhor adaptador recarregado via CPU.',flush=True)
+
         def _save_checkpoint(self, model, trial):
             super()._save_checkpoint(model, trial)
             # Rank 1 can inspect the checkpoint directory before rank 0 creates it.
