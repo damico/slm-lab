@@ -249,6 +249,8 @@ Para comparação paga ao vivo, configure `OPENAI_API_KEY` no servidor Spring. S
 
 ## Lab 03: recibos com OCR
 
+![Teste de recibos com imagem, campos e comparação](docs/lab03-receipts.png)
+
 Abra `/labs/03` para escolher um dos 361 recibos, ver a imagem e o texto OCR, conferir empresa/data/endereço/total, comparar base/especialista/API e exportar CSV/JSON. O histórico fica no navegador. Marcas por campo mostram divergências em relação à referência estrita; não são probabilidades de confiança. Dados preparados também estão disponíveis em `/datasets?lab=03`.
 
 ```bash
