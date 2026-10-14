@@ -130,11 +130,11 @@ CUDA_VISIBLE_DEVICES=0 python lab_runtime.py predict \
 
 # Bloco 11 de laboratorio-03-slm-extracao-recibos.md: 8. Comparação objetiva: original, especialista e LLM maior
 etapa_11() {
-export LLM_URL='https://SEU_ENDPOINT/v1/chat/completions'
-export LLM_MODEL='Qwen/Qwen3-32B'
-read -r -s -p 'Chave do endpoint: ' LLM_API_KEY
+export LLM_URL='https://api.openai.com/v1/chat/completions'
+export LLM_MODEL='gpt-4.1-mini'
+read -r -s -p 'Chave da API OpenAI: ' LLM_API_KEY
 export LLM_API_KEY
-export LLM_EXTRA_JSON='{"temperature":0,"chat_template_kwargs":{"enable_thinking":false}}'
+export LLM_EXTRA_JSON='{"temperature":0,"max_tokens":512}'
 python lab_runtime.py predict --api \
   --input data/validation.jsonl --output results/val_llm.jsonl --limit 3
 }
