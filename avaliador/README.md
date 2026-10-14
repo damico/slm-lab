@@ -27,7 +27,7 @@ cd ~/git/slm-lab/avaliador
 ./run.sh
 ```
 
-Abra **http://localhost:8080**. Em outra máquina da mesma rede, use o endereço da máquina que executa o Spring, por exemplo **http://192.168.68.137:8080**.
+Abra **http://localhost:8080**. Em outra máquina da mesma rede, use o endereço da máquina que executa o Spring, por exemplo **http://192.168.15.187:8080**.
 
 A primeira compilação baixa as dependências Java e os assets WebJars do Maven Central. As versões são fixadas no `pom.xml`; as próximas compilações reaproveitam o cache do Maven. `run.sh` grava o log da compilação e do Spring em `logs/web-DATA-HORA-PID.log`. A API Python grava seu próprio log em `logs/python-DATA-HORA-PID.log`.
 
@@ -116,7 +116,7 @@ LAB04_GPU=1 ./start-lab04.sh
 Se o Spring rodar em outro computador, a API Python pode continuar vinculada ao localhost da máquina de inferência. Abra um túnel SSH no computador do Spring:
 
 ```bash
-ssh -L 8084:127.0.0.1:8084 -L 8082:127.0.0.1:8082 jdamico@192.168.68.137
+ssh -L 8084:127.0.0.1:8084 -L 8082:127.0.0.1:8082 jdamico@192.168.15.187
 ```
 
 Nesse caso, mantenha `LAB04_API_URL=http://127.0.0.1:8084`. Atualize também `LAB04_API_URL` se mudar a porta Python. Os nomes e a origem das variáveis são mostrados aqui; eles não alteram os caminhos do treino.

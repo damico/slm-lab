@@ -120,6 +120,21 @@ def train(args):
     from datasets import Dataset
     from transformers import Trainer, TrainingArguments, DataCollatorForSeq2Seq, set_seed
     from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
+    class ReceiptTrainer(Trainer):
+        def _restore_adapter(self,checkpoint,model=None):
+            net=self.model if model is None else model
+            net.load_adapter(checkpoint,net.active_adapter,torch_device='cpu',is_trainable=True)
+        def _load_best_model(self):
+            self._restore_adapter(self.state.best_model_checkpoint)
+        def _load_from_checkpoint(self,resume_from_checkpoint,model=None):
+            self._restore_adapter(resume_from_checkpoint,model)
+        def _save_checkpoint(self,model,trial):
+            super()._save_checkpoint(model,trial)
+            if torch.distributed.is_initialized():
+                selection=[(self.state.best_model_checkpoint,self.state.best_metric,self.state.best_global_step)
+                           if self.is_world_process_zero() else None]
+                torch.distributed.broadcast_object_list(selection,src=0)
+                self.state.best_model_checkpoint,self.state.best_metric,self.state.best_global_step=selection[0]
     set_seed(args.seed)
     tok = tokenizer()
     config = json.loads(Path(args.data, "length_report.json").read_text())
@@ -159,25 +174,33 @@ def train(args):
         greater_is_better=False, prediction_loss_only=True, logging_steps=10,
         logging_nan_inf_filter=False, report_to="none", seed=args.seed,
         data_seed=args.seed, dataloader_num_workers=0, label_names=["labels"])
-    trainer = Trainer(model=model, args=ta, train_dataset=parts["train"],
+    trainer = ReceiptTrainer(model=model, args=ta, train_dataset=parts["train"],
                       eval_dataset=parts["validation"], processing_class=tok,
                       data_collator=DataCollatorForSeq2Seq(
                           tok, padding=True, label_pad_token_id=-100, pad_to_multiple_of=8))
     torch.cuda.reset_peak_memory_stats()
     start = time.perf_counter()
-    result = trainer.train(resume_from_checkpoint=args.resume or None)
-    if trainer.is_world_process_zero():
-        final = str(Path(args.run, "final_adapter"))
-        trainer.save_model(final)
-        tok.save_pretrained(final)
-        details = {**result.metrics, "seconds": time.perf_counter() - start,
-                   "rank0_peak_allocated_gib": torch.cuda.max_memory_allocated() / 2**30,
-                   "world_size": int(os.environ.get("WORLD_SIZE", "1")),
-                   "arguments": vars(args), "data_config": config,
-                   "revisions": json.loads(Path("revisions.json").read_text()),
-                   "data_hashes": {s: file_hash(Path(args.data, s + ".jsonl"))
-                                   for s in ("train", "validation")}}
-        Path(args.run, "run_report.json").write_text(json.dumps(details, indent=2))
+    try:
+        result = trainer.train(resume_from_checkpoint=args.resume or None)
+        print(f"DDP: rank local {os.environ.get('LOCAL_RANK','0')}, Trainer concluído.",flush=True)
+        if torch.distributed.is_initialized():torch.distributed.barrier(device_ids=[torch.cuda.current_device()])
+        if trainer.is_world_process_zero():
+            final = str(Path(args.run, "final_adapter"))
+            trainer.model.save_pretrained(final)
+            tok.save_pretrained(final)
+            details = {**result.metrics, "seconds": time.perf_counter() - start,
+                       "rank0_peak_allocated_gib": torch.cuda.max_memory_allocated() / 2**30,
+                       "world_size": int(os.environ.get("WORLD_SIZE", "1")),
+                       "arguments": vars(args), "data_config": config,
+                       "revisions": json.loads(Path("revisions.json").read_text()),
+                       "data_hashes": {s: file_hash(Path(args.data, s + ".jsonl"))
+                                       for s in ("train", "validation")}}
+            Path(args.run, "run_report.json").write_text(json.dumps(details, indent=2))
+
+            print("Adaptador final e relatório gravados.",flush=True)
+        if torch.distributed.is_initialized():torch.distributed.barrier(device_ids=[torch.cuda.current_device()])
+    finally:
+        if torch.distributed.is_initialized():torch.distributed.destroy_process_group()
 
 
 def remote_call(messages, max_new):

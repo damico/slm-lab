@@ -141,6 +141,10 @@ Configuração inicial: LoRA rank 16, alpha 32, dropout 0,05, learning rate `0.0
 
 Primeiro, teste uma GPU livre; depois, a comunicação entre as duas:
 
+O runtime sincroniza a seleção do melhor checkpoint entre ranks e recarrega o adaptador via CPU, copiando os pesos para a GPU já usada por cada processo. Ao terminar, ambos os ranks informam `Trainer concluído`, o rank 0 grava o adaptador/relatório e o grupo distribuído é encerrado. Se já copiou scripts anteriormente, atualize explicitamente `lab_runtime.py` a partir do repositório; `cp -n` preserva versões antigas.
+
+Se a rede estiver indisponível e os pesos/tokenizers já estiverem no cache, use `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1` na execução para evitar consultas de metadados ao Hugging Face. Essas variáveis não substituem downloads ausentes. Não refaça a preparação para retomar um experimento que já tem `data/train.jsonl`, `data/validation.jsonl` e `data/test.jsonl` válidos.
+
 ```bash
 CUDA_VISIBLE_DEVICES=1 python lab_runtime.py train \
   --data data --run runs/smoke_1gpu --max-steps 10 --accum 1 \
