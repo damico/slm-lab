@@ -126,6 +126,17 @@ def train(args):
     from datasets import Dataset
     from transformers import Trainer,TrainingArguments,DataCollatorForSeq2Seq,set_seed
     from peft import LoraConfig,get_peft_model,prepare_model_for_kbit_training
+    class SynchronizedTrainer(Trainer):
+        def _save_checkpoint(self, model, trial):
+            super()._save_checkpoint(model, trial)
+            # Rank 1 can inspect the checkpoint directory before rank 0 creates it.
+            # Identical selection state keeps load_best_model_at_end collectives aligned.
+            if torch.distributed.is_initialized():
+                selection=[(self.state.best_model_checkpoint,self.state.best_metric,
+                            self.state.best_global_step) if self.is_world_process_zero() else None]
+                torch.distributed.broadcast_object_list(selection,src=0)
+                (self.state.best_model_checkpoint,self.state.best_metric,
+                 self.state.best_global_step)=selection[0]
     if not torch.cuda.is_available():raise RuntimeError('CUDA indisponível')
     rank=int(os.environ.get('LOCAL_RANK','0'));torch.cuda.set_device(rank)
     distributed=int(os.environ.get('WORLD_SIZE','1'))>1
@@ -161,16 +172,18 @@ def train(args):
             save_total_limit=2,load_best_model_at_end=True,metric_for_best_model='eval_loss',greater_is_better=False,
             prediction_loss_only=True,logging_steps=10,report_to='none',seed=args.seed,data_seed=args.seed,
             dataloader_num_workers=0,label_names=['labels'])
-        trainer=Trainer(model=net,args=options,train_dataset=parts['train'],eval_dataset=parts['validation'],
+        trainer=SynchronizedTrainer(model=net,args=options,train_dataset=parts['train'],eval_dataset=parts['validation'],
             processing_class=tok,data_collator=DataCollatorForSeq2Seq(tok,padding=True,label_pad_token_id=-100,pad_to_multiple_of=8))
         torch.cuda.reset_peak_memory_stats();start=time.perf_counter()
         result=trainer.train(resume_from_checkpoint=args.resume or None)
+        print(f'DDP: rank local {rank}, Trainer concluído; melhor checkpoint: {trainer.state.best_model_checkpoint}',flush=True)
         if distributed:torch.distributed.barrier(device_ids=[rank])
         if trainer.is_world_process_zero():
             final=Path(args.run,'final_adapter');trainer.model.save_pretrained(final);tok.save_pretrained(final)
             save_json(Path(args.run,'run_report.json'),{**result.metrics,'seconds':time.perf_counter()-start,
                 'rank0_peak_allocated_gib':torch.cuda.max_memory_allocated()/2**30,'world_size':int(os.environ.get('WORLD_SIZE','1')),
                 'counts':counts,'arguments':vars(args),'config':config,
+                'best_model_checkpoint':trainer.state.best_model_checkpoint,'best_eval_loss':trainer.state.best_metric,
                 'data_sha256':{split:file_hash(Path(args.data,split+'.jsonl')) for split in parts}})
             print('Adaptador final e relatório gravados.',flush=True)
         if distributed:torch.distributed.barrier(device_ids=[rank])

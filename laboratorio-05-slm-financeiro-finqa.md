@@ -177,6 +177,10 @@ CUDA_VISIBLE_DEVICES=0,1 python -m torch.distributed.run \
   2>&1 | tee logs/smoke_distilled.log
 ```
 
+O fechamento correto mostra `Trainer concluído` para ambos os ranks e `Adaptador final e relatório gravados.`, com saída zero. O runtime sincroniza a seleção do melhor checkpoint após cada salvamento: os dois processos precisam reconhecer o mesmo checkpoint antes de recarregá-lo ao final. Um timeout NCCL em `ALLGATHER` depois de 10/10 pode indicar divergência nessa seleção; aumentar o timeout não corrige a ordem das operações. A inferência `--api` do Lab 01 não carrega modelos nas GPUs e pode continuar em paralelo.
+
+Se você já tinha copiado uma versão anterior do runtime, atualize o repositório e copie explicitamente `scripts/lab05-finqa/finqa_runtime.py` para sua pasta `05-finqa`. Essa cópia substitui apenas o código corrigido, preservando datasets, saídas do professor e checkpoints. A etapa inicial preserva scripts existentes e, por isso, não aplica atualizações automaticamente. Repita somente a etapa 8 do `.sh` com `--steps 8`, usando outro diretório de run se quiser preservar o smoke anterior; não regenere a supervisão do professor.
+
 O smoke test é diagnóstico; não use seu adaptador como resultado final. Para o piloto pareado, dois treinos novos com as mesmas perguntas, semente, 40 atualizações, rank e avaliação:
 
 ```bash
