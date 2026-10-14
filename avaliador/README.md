@@ -217,6 +217,8 @@ O dashboard inclui uma prévia do [quinto laboratório](../laboratorio-05-slm-fi
 
 ## Lab 01: chamadas de ferramentas
 
+![Tela de ferramentas com resultados reais do xLAM](docs/lab01-tools.png)
+
 Abra `/labs/01` para editar solicitações e catálogos, ver chamadas propostas, JSON, referência, comparação dos três modelos, etapas do teste e histórico da sessão. O resultado distingue inferência nova de benchmark registrado. Nenhuma ferramenta é executada; “contrato válido” confirma o formato JSON, sem afirmar validade semântica de todos os argumentos.
 
 ```bash

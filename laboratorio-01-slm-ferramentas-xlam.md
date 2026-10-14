@@ -316,7 +316,7 @@ O dataset deste roteiro não assegura cobertura adequada de solicitações impos
 
 ## 9. Interpretar os resultados e demonstrar valor
 
-Cada avaliação produz `*.summary.json` e `*.cases.jsonl`. Resultados medidos em 14/10/2026, com 5.996 referências válidas e elegíveis nas três condições:
+Cada avaliação produz `*.summary.json` e `*.cases.jsonl`. Os [resumos originais preservados](avaliador/docs/lab01-resultados-2026-10-14.json) permitem conferir os números. Resultados medidos em 14/10/2026, com 5.996 referências válidas e elegíveis nas três condições:
 
 | Condição | Acertos completos | Acurácia | IC 95% Wilson | Latência p50 / p95 | Pico alocado na inferência |
 |---|---:|---:|---|---|---|
