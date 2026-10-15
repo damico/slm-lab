@@ -1,8 +1,8 @@
 package br.com.slmlab.avaliador.controller;
 
 import br.com.slmlab.avaliador.model.Lab;
-import org.springframework.core.io.ClassPathResource;
-import org.springframework.http.ResponseEntity;
+import java.io.IOException;
+import br.com.slmlab.avaliador.service.DocumentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,6 +12,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Controller
 public class PageController {
+    private final DocumentService documents;
+
+    public PageController(DocumentService documents) { this.documents = documents; }
+
     @GetMapping("/")
     public String home(Model model) {
         model.addAttribute("labs", Lab.all());
@@ -34,9 +38,12 @@ public class PageController {
     }
 
     @GetMapping("/docs/{id}")
-    public ResponseEntity<ClassPathResource> document(@PathVariable String id) {
-        return ResponseEntity.ok().header("Content-Type", "text/plain; charset=UTF-8")
-                .body(new ClassPathResource("docs/" + find(id).document()));
+    public String document(@PathVariable String id, Model model) throws IOException {
+        Lab lab = find(id);
+        model.addAttribute("lab", lab);
+        model.addAttribute("active", id);
+        model.addAttribute("documentHtml", documents.render(lab));
+        return "document";
     }
 
     private Lab find(String id) {

@@ -1,5 +1,11 @@
 (() => {
   const root = document.documentElement;
+  document.querySelectorAll('[data-document-back]').forEach(link => link.addEventListener('click', event => {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    if (document.referrer && new URL(document.referrer).origin === location.origin && history.length > 1) {
+      event.preventDefault(); history.back();
+    }
+  }));
   document.getElementById('theme-toggle')?.addEventListener('click', () => {
     root.dataset.bsTheme = root.dataset.bsTheme === 'dark' ? 'light' : 'dark';
     try { localStorage.setItem('slm-theme', root.dataset.bsTheme); } catch (_) {}

@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org" xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" layout:decorate="~{layout}">
+<head><title th:text="${'Roteiro / ' + lab.title}">Roteiro do laboratório</title></head>
+<body><main layout:fragment="content">
+<nav class="document-navigation" aria-label="Navegação do roteiro"><a class="btn btn-outline-secondary" data-document-back th:href="@{/labs/{id}(id=${lab.id})}"><svg class="icon document-back-icon"><use href="#i-arrow"/></svg>Voltar</a><span class="eyebrow" th:text="${'ROTEIRO / LABORATÓRIO ' + lab.id}"></span></nav>
+<article class="panel document-body" aria-label="Roteiro do laboratório" th:utext="${documentHtml}"></article>
+<nav class="document-navigation document-navigation-bottom" aria-label="Voltar após ler o roteiro"><a class="btn btn-outline-secondary" data-document-back th:href="@{/labs/{id}(id=${lab.id})}"><svg class="icon document-back-icon"><use href="#i-arrow"/></svg>Voltar</a><a class="btn btn-outline-secondary" href="#">Voltar ao topo</a></nav>
+</main></body></html>

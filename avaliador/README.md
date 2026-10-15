@@ -278,3 +278,9 @@ O serviço carrega uma única vez o adaptador de `runs/main/final_adapter` junto
 | `LAB03_GPU` | `0` | GPU da inferência real |
 
 Logs ficam em `avaliador/logs/receipts-DATA-HORA-PID.log`. Imagens do benchmark são servidas somente dos arquivos cadastrados em `raw/images`. O backend recusa gabaritos no payload de inferência. Ao editar o OCR, a referência e as respostas registradas são removidas. A comparação OpenAI ao vivo usa a chave configurada no Spring e envia somente OCR/instruções, não imagem nem referência. O custo/latência do benchmark mede a geração após a preparação do OCR, sem confundi-la com o tempo total de um upload novo.
+
+## Leitura dos roteiros dentro do avaliador
+
+Os links de roteiro abrem `/docs/01` até `/docs/05` no painel principal, com Markdown renderizado, tabelas, comandos e o tema da interface. Há botões **Voltar** no início e no fim: retornam à tela de origem; ao acessar um roteiro diretamente, retornam ao laboratório correspondente. Links para arquivos do repositório levam ao código no GitHub.
+
+O Maven baixa CommonMark e a extensão de tabelas na primeira compilação para transformar os arquivos Markdown locais em HTML no servidor. A leitura dos roteiros não usa APIs de modelos nem precisa de CDN. HTML embutido no Markdown é escapado e URLs perigosas são bloqueadas pelo renderizador.

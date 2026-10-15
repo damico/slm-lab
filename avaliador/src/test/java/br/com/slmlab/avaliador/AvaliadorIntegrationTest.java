@@ -88,6 +88,18 @@ class AvaliadorIntegrationTest {
         mvc.perform(get("/api/status")).andExpect(jsonPath("$.available").value(true)).andExpect(jsonPath("$.comparison_enabled").value(false));
     }
 
+    @Test void rendersEveryLabDocumentInsideTheWorkspace() throws Exception {
+        for (String id : java.util.List.of("01", "02", "03", "04", "05")) {
+            String html = mvc.perform(get("/docs/" + id)).andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/html"))
+                .andReturn().getResponse().getContentAsString(java.nio.charset.StandardCharsets.UTF_8);
+            assertThat(html).contains("class=\"sidebar\"", "class=\"panel document-body\"", "<h1>", "<pre><code", "<table>");
+            assertThat(html.split("data-document-back", -1)).hasSize(3);
+            assertThat(html).doesNotContain("target=\"_blank\"");
+        }
+        mvc.perform(get("/docs/99")).andExpect(status().isNotFound());
+    }
+
     @Test void sendsOnlyHistoryToTheModelAndPreservesItsOutput() throws Exception {
         mvc.perform(post("/api/lab04/predict").contentType("application/json")
             .content("{\"history\":[{\"role\":\"customer\",\"text\":\"Hello\"}],\"compare\":false}"))

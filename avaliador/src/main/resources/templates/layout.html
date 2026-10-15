@@ -34,7 +34,7 @@
       <a th:href="@{/labs/05}" class="nav-item" th:classappend="${active == '05'} ? 'active' : ''" title="Cálculos financeiros"><svg class="icon"><use href="#i-database"/></svg><span>Finanças</span><span class="nav-dot pending" role="img" aria-label="Laboratório 05 em preparação" title="Em preparação"></span></a>
       <a th:href="@{/datasets}" class="nav-item" th:classappend="${active == 'datasets'} ? 'active' : ''" title="Explorar datasets"><svg class="icon"><use href="#i-book"/></svg><span>Explorar datasets</span></a>
     </nav>
-    <div class="sidebar-note"><span class="eyebrow">PODER DA ESPECIALIZAÇÃO</span><h3>Pequeno modelo.<br>Grande propósito.</h3><p>Explore cinco tarefas com modelos ajustados para cada problema.</p><a th:href="@{/docs/04}" target="_blank">Ler o laboratório <svg class="icon"><use href="#i-north"/></svg></a></div>
+    <div class="sidebar-note"><span class="eyebrow">PODER DA ESPECIALIZAÇÃO</span><h3>Pequeno modelo.<br>Grande propósito.</h3><p>Explore cinco tarefas com modelos ajustados para cada problema.</p><a th:href="@{/docs/{id}(id=${lab != null ? lab.id : '04'})}">Ler o laboratório <svg class="icon"><use href="#i-north"/></svg></a></div>
     <div class="sidebar-footer"><span class="status-dot" data-status-dot></span><span data-api-status>Consultando API local</span></div>
   </aside>
   <div class="workspace">
