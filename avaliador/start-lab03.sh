@@ -16,6 +16,6 @@ mkdir -p "$AVALIADOR_DIR/logs"
 LAB03_LOG="$AVALIADOR_DIR/logs/receipts-$(date +%Y%m%d-%H%M%S)-$$.log"
 echo "API de recibos / GPU habilitada: ${LAB03_ENABLE_GPU:-0} / log: $LAB03_LOG"
 cd "$LAB03_DIR"
-exec "$LAB_VENV_DIR/bin/python" -u "$LAB_REPO_DIR/scripts/lab03-recibos/serve_receipts.py" \
+exec "$LAB_VENV_DIR/bin/python" -u "$AVALIADOR_DIR/gpu_worker.py" --lab 03 \
   --data data --results results --adapter "$LAB03_ADAPTER" --port "${LAB03_API_PORT:-8083}" \
   "${LAB03_OPTIONS[@]}" > >(tee "$LAB03_LOG") 2>&1

@@ -316,3 +316,25 @@ O script usa `~/slm-labs/.venv`, muda para `~/slm-labs/05-finqa`, preserva logs 
 API Python: `GET /health`, `/catalog`, `/example?id=...`, `/example/random` e `POST /predict`. A interface usa `/api/lab05/predict/stream` com SSE. Não envie respostas ou programas: o corpo contém somente `context` com `question`, `sources` e `table`, além de `mode` e `example_id` opcional. A entrada antiga com `question`, `pre_text`, `post_text` e `table` também funciona diretamente no serviço Python para inferência real.
 
 Resultado medido: SFT **45,16%**, destilado **42,55%**, professor **19,44%**, base **2,27%** no teste inteiro. A diferença destilado menos SFT nos elegíveis foi **−2,66 pp**, IC agrupado de 95% **−4,70 a −0,66 pp**. Trata-se da métrica local de execução com evidências; não é o avaliador oficial FinQA. Consulte o roteiro para cobertura, tempos, VRAM e sobreposição de documentos entre splits.
+
+## Ativar os cinco endpoints de inferência real
+
+Na raiz do repositório, com as GPUs livres de treinamento:
+
+```bash
+bash avaliador/start-all.sh
+```
+
+O script inicia as cinco APIs em segundo plano, com logs e PIDs em `avaliador/logs/`. Mantém APIs reais já ativas; se encontrar uma versão em modo CPU, solicita que ela seja encerrada antes. O Spring usa as portas locais 8081 a 8085. Nas telas de Ferramentas, Recibos e Finanças, inferência real é selecionada por padrão quando habilitada; o benchmark continua disponível como alternativa explícita.
+
+| Lab | Endpoint Spring | Endpoint Python | GPU física padrão |
+|---|---|---|---|
+| 01 / Ferramentas | `POST /api/lab01/predict` | `POST :8081/predict` | 0 |
+| 02 / SQL | `POST /api/lab02/predict` | `POST :8082/predict` | 1 |
+| 03 / Recibos | `POST /api/lab03/predict` | `POST :8083/predict` | 0 |
+| 04 / Decisões | `POST /api/lab04/predict` | `POST :8084/decide` | 0 |
+| 05 / Finanças | `POST /api/lab05/predict` | `POST :8085/predict` | 1 |
+
+Os scripts iniciam os mesmos runtimes e adaptadores por `gpu_worker.py`. A fila por GPU serializa carregamento e inferência entre os processos; ao terminar cada chamada, libera o cache CUDA sem descarregar o modelo. GPUs diferentes podem trabalhar ao mesmo tempo. Isso reduz os picos de memória ao alternar os cinco especialistas nas duas RTX 3070. Não muda a quantização, os prompts ou o cálculo dos modelos; a latência interativa pode incluir espera na fila, além de carregamento na primeira chamada.
+
+O texto do exemplo simples do FinQA pede crescimento percentual, mas a inferência real de verificação produziu **0,18**, sem multiplicar por 100. A tela mostra esse resultado e o programa efetivamente executado, sem substituir por 18. Conferir unidades faz parte do experimento.

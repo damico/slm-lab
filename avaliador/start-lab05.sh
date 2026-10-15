@@ -17,6 +17,6 @@ mkdir -p "$AVALIADOR_DIR/logs"
 LAB05_LOG="$AVALIADOR_DIR/logs/finqa-$(date +%Y%m%d-%H%M%S)-$$.log"
 echo "API FinQA / GPU habilitada: ${LAB05_ENABLE_GPU:-0} / log: $LAB05_LOG"
 cd "$LAB05_DIR"
-exec "$LAB_VENV_DIR/bin/python" -u "$LAB_REPO_DIR/scripts/lab05-finqa/serve_finqa_web.py" \
+exec "$LAB_VENV_DIR/bin/python" -u "$AVALIADOR_DIR/gpu_worker.py" --lab 05 \
   --data data --results results --adapter "$LAB05_ADAPTER" --port "${LAB05_API_PORT:-8085}" \
   "${LAB05_OPTIONS[@]}" > >(tee "$LAB05_LOG") 2>&1

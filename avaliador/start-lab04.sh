@@ -21,7 +21,7 @@ echo "Carregando o adaptador real de $LAB04_DIR/runs/main/final_adapter"
 echo "Log: $LAB04_LOG"
 export CUDA_VISIBLE_DEVICES="${LAB04_GPU:-0}"
 export TOKENIZERS_PARALLELISM=false
-exec "$LAB_VENV_DIR/bin/python" -u "$LAB_REPO_DIR/scripts/lab04-decisoes/serve_decisions.py" \
+exec "$LAB_VENV_DIR/bin/python" -u "$AVALIADOR_DIR/gpu_worker.py" --lab 04 \
   --data "$LAB04_DIR/data" --adapter "$LAB04_DIR/runs/main/final_adapter" \
   --calibration "$LAB04_DIR/runs/decision_policy.json" --port "${LAB04_API_PORT:-8084}" \
   > >(tee "$LAB04_LOG") 2>&1

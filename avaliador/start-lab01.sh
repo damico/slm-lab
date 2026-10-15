@@ -18,6 +18,6 @@ LAB01_LOG="$AVALIADOR_DIR/logs/tools-$(date +%Y%m%d-%H%M%S)-$$.log"
 export TOKENIZERS_PARALLELISM=false
 cd "$LAB01_DIR"
 echo "API de ferramentas / GPU habilitada: ${LAB01_ENABLE_GPU:-0} / log: $LAB01_LOG"
-exec "$LAB_VENV_DIR/bin/python" -u "$LAB_REPO_DIR/scripts/lab01-ferramentas/serve_tools.py" \
+exec "$LAB_VENV_DIR/bin/python" -u "$AVALIADOR_DIR/gpu_worker.py" --lab 01 \
   --data data --results results --adapter "$LAB01_ADAPTER" --port "${LAB01_API_PORT:-8081}" \
   "${LAB01_OPTIONS[@]}" > >(tee "$LAB01_LOG") 2>&1

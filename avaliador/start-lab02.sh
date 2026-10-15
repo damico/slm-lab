@@ -15,6 +15,6 @@ echo "Log: $LAB02_LOG"
 export CUDA_VISIBLE_DEVICES="${LAB02_GPU:-1}"
 export TOKENIZERS_PARALLELISM=false
 cd "$LAB02_DIR"
-exec "$LAB_VENV_DIR/bin/python" -u "$LAB_REPO_DIR/scripts/lab02-sql/serve_sql.py" \
+exec "$LAB_VENV_DIR/bin/python" -u "$AVALIADOR_DIR/gpu_worker.py" --lab 02 \
   --data "$LAB02_DIR/data" --adapter "$LAB02_ADAPTER" --results "$LAB02_DIR/results" \
   --port "${LAB02_API_PORT:-8082}" > >(tee "$LAB02_LOG") 2>&1
