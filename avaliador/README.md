@@ -288,6 +288,8 @@ O Maven baixa CommonMark e a extensão de tabelas na primeira compilação para 
 
 ## Lab 05: cálculos financeiros com FinQA
 
+![FinQA no avaliador com cálculo e comparação dos quatro modelos](docs/lab05-finqa.png)
+
 Abra `/labs/05` para selecionar um dos 1.147 exemplos ou o exemplo simples de crescimento, editar a pergunta, tabela e fontes, inspecionar resultado, operações e evidências e exportar JSON. O histórico guarda os últimos dez testes no navegador. O benchmark compara base, SFT convencional, destilado e professor em CPU; a tela identifica as respostas registradas. Referências nunca entram na geração, e entradas editadas deixam de herdar o gabarito original.
 
 Na raiz do repositório:
@@ -338,3 +340,5 @@ O script inicia as cinco APIs em segundo plano, com logs e PIDs em `avaliador/lo
 Os scripts iniciam os mesmos runtimes e adaptadores por `gpu_worker.py`. A fila por GPU serializa carregamento e inferência entre os processos; ao terminar cada chamada, libera o cache CUDA sem descarregar o modelo. GPUs diferentes podem trabalhar ao mesmo tempo. Isso reduz os picos de memória ao alternar os cinco especialistas nas duas RTX 3070. Não muda a quantização, os prompts ou o cálculo dos modelos; a latência interativa pode incluir espera na fila, além de carregamento na primeira chamada.
 
 O texto do exemplo simples do FinQA pede crescimento percentual, mas a inferência real de verificação produziu **0,18**, sem multiplicar por 100. A tela mostra esse resultado e o programa efetivamente executado, sem substituir por 18. Conferir unidades faz parte do experimento.
+
+Verificação realizada em 15/10/2026: uma chamada real por endpoint, sem comparação paga, com os cinco modelos carregados. Memória após o aquecimento: GPU 0 **5.601 MiB**, GPU 1 **3.996 MiB**. Os exemplos retornaram saídas no contrato, sem certificar acerto semântico; [registro das chamadas](docs/inferencia-endpoints-2026-10-15.json). A validação automatizada inclui 36 testes Python e 12 testes Java, além da navegação no desktop e celular.

@@ -1,0 +1,44 @@
+{
+  "checked_at": "2026-10-15T20:54:43.745Z",
+  "labs": {
+    "01": {
+      "mode": "specialist",
+      "status": "ok",
+      "calls": 2,
+      "latency_s": 4.123321009974461
+    },
+    "02": {
+      "status": "ok",
+      "sql": "SELECT T2.category, SUM(T2.amount) FROM budget AS T1 INNER JOIN event AS T2 ON T1.link_to_event = T2.event_id WHERE T2.event_name = 'April Speaker'",
+      "latency_s": 4.796222555974964
+    },
+    "03": {
+      "mode": "specialist",
+      "status": "ok",
+      "fields": {
+        "company": "OJC MARKETING SDN BHD",
+        "date": "15/01/2019",
+        "address": "NO 2 & 4, JALAN BAYU 4, BANDAR SERI ALAM, 81750 MASAI, JOHOR",
+        "total": "193.00"
+      },
+      "latency_s": 8.512706239009276
+    },
+    "04": {
+      "choice": "retrieve_utterance",
+      "confidence": 0.6827616216956705,
+      "classes": 31
+    },
+    "05": {
+      "mode": "specialist",
+      "status": "ok",
+      "answer": 3633.5,
+      "steps": 1,
+      "latency_s": 2.8791568119777367
+    }
+  },
+  "gpu_memory_after_warmup_mib": {
+    "0": 5601,
+    "1": 3996
+  },
+  "note": "Smoke test de conectividade e inferência real; status ok não garante acerto semântico. Latências de geração, sem carregamento ou espera na fila."
+}
