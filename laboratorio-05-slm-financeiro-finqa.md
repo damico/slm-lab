@@ -293,12 +293,48 @@ python evaluate_finqa.py compare results/teacher.cases.jsonl results/distilled.c
 
 ## 11. Medidas e interpretação
 
-| Condição | Resultado executado | Programas válidos | Cobertura | p50 / p95 | VRAM | Tempo/energia |
+Execução concluída em **15/10/2026**, nas duas RTX 3070 de 8 GB. Foram geradas respostas para os **1.147 exemplos de teste** em cada condição. Destes, **1.127 cabem na janela** dos modelos; os 20 restantes continuam no denominador do teste completo. Cobertura: **98,26%** em todas as condições.
+
+| Condição | Corretos / 1.147 | Acerto completo | Acerto / 1.127 elegíveis | Programas válidos / elegíveis | Geração p50 / p95 | Pico alocado na inferência |
 |---|---|---|---|---|---|---|
-| Qwen3-1.7B original | medir | medir | mesma regra | medir | medir | medir |
-| Aluno com gabaritos | medir | medir | mesma regra | medir | medir | medir |
-| Aluno destilado | medir | medir | mesma regra | medir | medir | medir |
-| Qwen3-8B professor | medir | medir | mesma regra | medir | ambas as GPUs | medir |
+| Qwen3-1.7B original | 26 | 2,27% | 2,31% | 21,74% | 1,79 / 5,82 s | 1,51 GiB / uma GPU |
+| Aluno com gabaritos / SFT | 518 | **45,16%** | **45,96%** | 83,67% | 2,98 / 4,22 s | 1,63 GiB / uma GPU |
+| Aluno destilado | 488 | **42,55%** | **43,30%** | 83,67% | 3,24 / 5,46 s | 1,63 GiB / uma GPU |
+| Qwen3-8B professor | 223 | 19,44% | 19,79% | 52,17% | 4,25 / 8,90 s | 2,17 + 4,14 GiB / duas GPUs |
+
+Os picos são `torch.cuda.max_memory_allocated`, não toda a memória mostrada pelo `nvidia-smi`. O professor distribui camadas entre duas GPUs; cada aluno usa apenas uma na inferência. Os intervalos de Wilson de 95% do acerto elegível são: base **1,58–3,36%**, SFT **43,07–48,88%**, destilado **40,44–46,21%** e professor **17,57–22,21%**.
+
+A comparação pareada agrupa **1.127 decisões em 277 documentos**:
+
+| Comparação / B menos A | Diferença no acerto elegível | Bootstrap de 95% por documento |
+|---|---|---|
+| SFT menos original | +43,66 pp | +40,13 a +47,24 pp |
+| Destilado menos SFT | **−2,66 pp** | **−4,70 a −0,66 pp** |
+| Destilado menos professor | +23,51 pp | +20,26 a +26,57 pp |
+
+**Conclusão desta execução:** os dois alunos treinados melhoraram muito sobre a base, mas a supervisão do professor não acrescentou ganho sobre os gabaritos: o SFT convencional teve maior acerto e menor latência que o destilado. O intervalo pareado destilado menos SFT fica abaixo de zero neste teste. O aluno destilado superou o professor nesta tarefa restrita, após especialização com respostas filtradas pelo gabarito; isso não demonstra superioridade geral de um modelo 1.7B sobre um 8B. O professor não recebeu esse fine-tuning.
+
+A igualdade na taxa de programas válidos não significa igualdade nas respostas: cada aluno produziu 943 programas aceitos, com acertos numéricos diferentes. O recall médio de evidências **somente entre programas válidos elegíveis** foi base **74,63%** (245 casos), SFT **77,97%** (943), destilado **81,74%** (943) e professor **84,05%** (588). Essa média condicionada não é recall sobre o teste inteiro. Programas textualmente iguais ao gabarito: 25, 469, 436 e 187, respectivamente; isso é mais restrito que equivalência de cálculo e não é o avaliador simbólico oficial.
+
+Os status brutos foram base `ok=1113`, `output_limit=14`; SFT `ok=1126`, `output_limit=1`; destilado `ok=1103`, `output_limit=24`; professor `ok=1114`, `output_limit=13`. Cada condição também teve os mesmos 20 `context_exceeded`. `ok` na geração não garante programa válido nem resposta correta; falhas foram preservadas, sem selecionar apenas casos favoráveis.
+
+**Supervisão e orçamento de treinamento:** o professor gerou **4.768 candidatos**, dos quais **1.231 (25,82%)** foram aprovados automaticamente e usados nos dois alunos, com os mesmos IDs. Ambos treinaram por **2 épocas / 154 atualizações**, microbatch 1 por GPU, acumulação 8, batch efetivo 16, rank 16, LR 0,0001 e seed 42; validação de 128 exemplos e checkpoint escolhido por loss. Em ambos, o adaptador final corresponde ao `checkpoint-100` selecionado. A seleção automática deve ser acompanhada pela revisão de `paired_main/review.jsonl`; o relatório não comprova por si só que houve revisão humana.
+
+| Fase medida | Tempo registrado | Observação |
+|---|---|---|
+| Geração dos 4.768 candidatos | 6h28m36s | Professor local / duas GPUs |
+| Treino SFT | 21m28s | `run_report.seconds`; Trainer: 20m44s; pico rank 0: 5,79 GiB |
+| Treino destilado | 21m30s | `run_report.seconds`; Trainer: 20m46s; pico rank 0: 5,74 GiB |
+| Teste original | 53m39s | 1.147 entradas |
+| Teste SFT | 1h00m12s | 1.147 entradas |
+| Teste destilado | 1h26m06s | 1.147 entradas |
+| Teste professor | 1h40m04s | 1.147 entradas |
+
+Os tempos dos testes vêm de `finished − started` dos metadados e incluem a execução da fase; p50/p95 vêm de gerações com status `ok`. O valor de VRAM do treino foi registrado somente no rank 0. Energia e custo de amortização **não foram medidos**; não há cobrança de API de terceiros nesta execução local, mas há custo de hardware e eletricidade.
+
+**Limite da separação dos dados:** os splits originais mantêm documentos de relatório em comum: 197 entre treino/validação, 243 entre treino/teste e 93 entre validação/teste, segundo o campo `document`. A geração de supervisão usa apenas exemplos de treino; isso não torna o teste independente por documento. Os intervalos agrupados tratam a dependência entre exemplos do teste, mas não eliminam a sobreposição de documentos entre splits nem a possível exposição no pré-treinamento.
+
+Relatórios preservados: [métricas, tempos, configuração e hashes](avaliador/docs/lab05-resultados-2026-10-15.json) e [comparações, status e sobreposições](avaliador/docs/lab05-comparacoes-2026-10-15.json). O arquivo de teste tem SHA-256 `8d757c6bffec48b4caeb41dbc283f2ded682429632a72711a2935caa1c8e73b5`. Os registros originais ficam em `results/*.summary.json`, `results/*.cases.jsonl`, `results/test_*.meta.json`, `paired_main/selection_report.json` e `runs/main_*/run_report.json`.
 
 `accuracy_eligible` usa referências válidas que cabem no contexto; `accuracy_all_valid` inclui as que não couberam. `program_valid_rate` exige cálculo permitido e operandos fundamentados nas evidências. Mostre também recall das evidências e casos de coincidência numérica. A métrica é **local_grounded_execution_accuracy_not_official_FinQA**: não é o avaliador oficial de equivalência simbólica, nem certifica significado, unidades ou exatidão financeira em produção.
 
@@ -340,7 +376,21 @@ curl -fsS http://127.0.0.1:8085/predict \
 
 A resposta inclui a geração, resultado executado, operações intermediárias e fontes. O exemplo didático da calculadora tem resposta 18; a inferência real pode errar e será exibida como tal. `requires_review=true` indica que validade mecânica não garante que a interpretação/unidade esteja correta; não inventamos confiança calibrada para este modelo generativo. A API rejeita campos de gabarito e programas arbitrários enviados junto do contexto.
 
-O dashboard do [avaliador web](avaliador/README.md) mostra o Lab 05 e seu roteiro como **em preparação**, até o adaptador ser treinado e a integração web ser implementada. A API Python é executável após o treino; não mostramos inferência simulada como se houvesse pesos prontos.
+O [avaliador web](avaliador/README.md) já integra este laboratório em `/labs/05`: escolha entre os 1.147 exemplos, confira o resultado numérico, cada operação e as evidências; compare as quatro respostas preservadas ou execute o adaptador destilado em uma nova pergunta. O modo registrado não carrega modelos nem ocupa GPU. A tela identifica o modo usado e não apresenta benchmark como inferência nova.
+
+Na raiz do repositório, inicie a API do avaliador em CPU:
+
+```bash
+bash avaliador/start-lab05.sh
+```
+
+Para habilitar também a inferência real, com as GPUs disponíveis, use em vez do comando anterior:
+
+```bash
+LAB05_ENABLE_GPU=1 LAB05_GPU=1 bash avaliador/start-lab05.sh
+```
+
+Esse serviço usa `serve_finqa_web.py`, reutiliza `Generator` e o executor do laboratório e carrega `runs/main_distilled/final_adapter` uma única vez, no primeiro teste real. A comparação registrada não chama o professor. O Spring usa `LAB05_API_URL=http://127.0.0.1:8085`. Edições da pergunta, tabela ou fontes removem a associação ao gabarito; a referência só aparece na resposta de avaliação e não entra no prompt. O atalho didático de crescimento não tem gabarito associado ao teste e também executa o modelo real.
 
 ## 13. Diagnóstico e arquivos a preservar
 

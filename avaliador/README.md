@@ -2,7 +2,7 @@
 
 Aplicação Spring Boot + Thymeleaf Layout Dialect + Bootstrap 5, com comparação opcional por Spring AI. A interface usa as referências visuais fornecidas em `/tmp/design`: cartões escuros, números grandes, destaques roxos e verdes e layout responsivo. Os recursos de Bootstrap e Chart.js são WebJars locais; o navegador não consulta CDN.
 
-O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. O Lab 02 usa o adaptador SQL treinado, os 11 bancos SQLite do Mini-Dev e as respostas preservadas do benchmark. O Lab 01 oferece comparação registrada em CPU e inferência real opcional com seu adaptador treinado. O Lab 03 oferece imagem, OCR, campos extraídos, comparação registrada e adaptador real opcional. O Lab 05 permanece em prévia até terminar o treino completo. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
+O Lab 04 usa a inferência real do adaptador treinado, com probabilidades calibradas, catálogo de ações, exemplos ABCD e regras recuperadas. O Lab 02 usa o adaptador SQL treinado, os 11 bancos SQLite do Mini-Dev e as respostas preservadas do benchmark. O Lab 01 oferece comparação registrada em CPU e inferência real opcional com seu adaptador treinado. O Lab 03 oferece imagem, OCR, campos extraídos, comparação registrada e adaptador real opcional. O Lab 05 oferece os quatro benchmarks FinQA, resultado numérico, operações, evidências e inferência real opcional com o aluno destilado. Os números do dashboard são o benchmark registrado no roteiro, e não estatísticas dos novos testes da sessão.
 
 ## Iniciar na máquina com as GPUs
 
@@ -284,3 +284,35 @@ Logs ficam em `avaliador/logs/receipts-DATA-HORA-PID.log`. Imagens do benchmark 
 Os links de roteiro abrem `/docs/01` até `/docs/05` no painel principal, com Markdown renderizado, tabelas, comandos e o tema da interface. Há botões **Voltar** no início e no fim: retornam à tela de origem; ao acessar um roteiro diretamente, retornam ao laboratório correspondente. Links para arquivos do repositório levam ao código no GitHub.
 
 O Maven baixa CommonMark e a extensão de tabelas na primeira compilação para transformar os arquivos Markdown locais em HTML no servidor. A leitura dos roteiros não usa APIs de modelos nem precisa de CDN. HTML embutido no Markdown é escapado e URLs perigosas são bloqueadas pelo renderizador.
+
+
+## Lab 05: cálculos financeiros com FinQA
+
+Abra `/labs/05` para selecionar um dos 1.147 exemplos ou o exemplo simples de crescimento, editar a pergunta, tabela e fontes, inspecionar resultado, operações e evidências e exportar JSON. O histórico guarda os últimos dez testes no navegador. O benchmark compara base, SFT convencional, destilado e professor em CPU; a tela identifica as respostas registradas. Referências nunca entram na geração, e entradas editadas deixam de herdar o gabarito original.
+
+Na raiz do repositório:
+
+```bash
+bash avaliador/start-lab05.sh
+```
+
+Para habilitar a inferência real, execute em vez do anterior, com uma GPU livre:
+
+```bash
+LAB05_ENABLE_GPU=1 LAB05_GPU=1 bash avaliador/start-lab05.sh
+```
+
+O script usa `~/slm-labs/.venv`, muda para `~/slm-labs/05-finqa`, preserva logs em `avaliador/logs/finqa-DATA-HORA-PID.log` e carrega o adaptador somente na primeira inferência real. Os pesos e tokenizer já baixados para o laboratório são reutilizados para produzir programas; o padrão offline não faz novo download. Nenhum professor é carregado para testar o aluno.
+
+| Variável | Padrão | Finalidade |
+|---|---|---|
+| `LAB05_DIR` | `~/slm-labs/05-finqa` | Dados, metadados e resultados |
+| `LAB05_ADAPTER` | `runs/main_distilled/final_adapter` dentro do Lab 05 | Adaptador real do aluno |
+| `LAB05_ENABLE_GPU` | `0` | `1` habilita inferência real; `0` mantém benchmark em CPU |
+| `LAB05_GPU` | `0` | GPU visível no modo real |
+| `LAB05_API_PORT` | `8085` | Porta do serviço Python |
+| `LAB05_API_URL` | `http://127.0.0.1:8085` | URL usada pelo Spring |
+
+API Python: `GET /health`, `/catalog`, `/example?id=...`, `/example/random` e `POST /predict`. A interface usa `/api/lab05/predict/stream` com SSE. Não envie respostas ou programas: o corpo contém somente `context` com `question`, `sources` e `table`, além de `mode` e `example_id` opcional. A entrada antiga com `question`, `pre_text`, `post_text` e `table` também funciona diretamente no serviço Python para inferência real.
+
+Resultado medido: SFT **45,16%**, destilado **42,55%**, professor **19,44%**, base **2,27%** no teste inteiro. A diferença destilado menos SFT nos elegíveis foi **−2,66 pp**, IC agrupado de 95% **−4,70 a −0,66 pp**. Trata-se da métrica local de execução com evidências; não é o avaliador oficial FinQA. Consulte o roteiro para cobertura, tempos, VRAM e sobreposição de documentos entre splits.

@@ -1,0 +1,78 @@
+{
+  "comparisons": [
+    {
+      "n": 1127,
+      "documents": 277,
+      "delta_B_minus_A": 0.43655723158828746,
+      "cluster_bootstrap95": [
+        0.4012728199540196,
+        0.47243434648711075
+      ]
+    },
+    {
+      "n": 1127,
+      "documents": 277,
+      "delta_B_minus_A": -0.026619343389529725,
+      "cluster_bootstrap95": [
+        -0.047037754836741275,
+        -0.006553543566813621
+      ]
+    },
+    {
+      "n": 1127,
+      "documents": 277,
+      "delta_B_minus_A": 0.23513753327417924,
+      "cluster_bootstrap95": [
+        0.20257795741439108,
+        0.26574279184247535
+      ]
+    }
+  ],
+  "details": {
+    "base": {
+      "statuses": {
+        "ok": 1113,
+        "context_exceeded": 20,
+        "output_limit": 14
+      },
+      "evidence_recall_valid_programs": 0.7462585034013606,
+      "evidence_recall_n": 245,
+      "exact_programs_eligible": 25
+    },
+    "sft": {
+      "statuses": {
+        "ok": 1126,
+        "context_exceeded": 20,
+        "output_limit": 1
+      },
+      "evidence_recall_valid_programs": 0.7796924708377518,
+      "evidence_recall_n": 943,
+      "exact_programs_eligible": 469
+    },
+    "distilled": {
+      "statuses": {
+        "ok": 1103,
+        "context_exceeded": 20,
+        "output_limit": 24
+      },
+      "evidence_recall_valid_programs": 0.8174266525273949,
+      "evidence_recall_n": 943,
+      "exact_programs_eligible": 436
+    },
+    "teacher": {
+      "statuses": {
+        "ok": 1114,
+        "context_exceeded": 20,
+        "output_limit": 13
+      },
+      "evidence_recall_valid_programs": 0.8404761904761905,
+      "evidence_recall_n": 588,
+      "exact_programs_eligible": 187
+    }
+  },
+  "overlaps": {
+    "train_validation": 197,
+    "train_test": 243,
+    "validation_test": 93
+  }
+}

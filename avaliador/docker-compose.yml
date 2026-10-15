@@ -5,6 +5,7 @@ services:
       dockerfile: avaliador/Dockerfile
     network_mode: host
     environment:
+      LAB05_API_URL: ${LAB05_API_URL:-http://127.0.0.1:8085}
       AVALIADOR_PORT: ${AVALIADOR_PORT:-8080}
       DATASET_API_URL: ${DATASET_API_URL:-http://127.0.0.1:8086}
       LAB01_API_URL: ${LAB01_API_URL:-http://127.0.0.1:8081}

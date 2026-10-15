@@ -24,7 +24,7 @@ public record Lab(String id, String title, String category, String dataset, Stri
                 List.of("Histórico + regras", "Classificador calibrado", "Próxima ação + confiança")),
             new Lab("05", "Cálculos financeiros", "Destilação offline", "FinQA / relatórios",
                 "Proponha cálculos verificáveis e compare um aluno destilado com seu professor.",
-                "Programa, resultado executado e evidências", "laboratorio-05-slm-financeiro-finqa.md", false,
+                "Programa, resultado executado e evidências", "laboratorio-05-slm-financeiro-finqa.md", true,
                 List.of("Tabela + contexto + pergunta", "Professor 8B + validação", "Aluno 1.7B + cálculo verificável")));
     }
 }

@@ -68,6 +68,7 @@ class AvaliadorIntegrationTest {
         registry.add("avaliador.sql-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.tools-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.receipts-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
+        registry.add("avaliador.finqa-inference-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.dataset-url", () -> "http://127.0.0.1:" + upstream.getAddress().getPort());
         registry.add("avaliador.openai-api-key", () -> "");
     }
@@ -98,6 +99,16 @@ class AvaliadorIntegrationTest {
             assertThat(html).doesNotContain("target=\"_blank\"");
         }
         mvc.perform(get("/docs/99")).andExpect(status().isNotFound());
+    }
+
+    @Test void finqaForwardsOnlyContextAndRejectsInjectedReferences() throws Exception {
+        String input="{\"context\":{\"question\":\"Growth?\",\"sources\":{\"table_1\":\"100 to 118\"},\"table\":[[\"Revenue\",\"100\",\"118\"]]},\"example_id\":\"case:1\",\"mode\":\"recorded\"}";
+        mvc.perform(get("/api/lab05/status")).andExpect(status().isOk()).andExpect(jsonPath("$.available").value(true));
+        mvc.perform(post("/api/lab05/predict").contentType("application/json").content(input)).andExpect(status().isOk());
+        JsonNode forwarded=mapper.readTree(lastHistory.get());
+        assertThat(forwarded.size()).isEqualTo(3);
+        assertThat(forwarded.path("context").path("question").asText()).isEqualTo("Growth?");
+        mvc.perform(post("/api/lab05/predict").contentType("application/json").content(input.replace("\"mode\":", "\"gold\":18,\"mode\":"))).andExpect(status().isBadRequest());
     }
 
     @Test void sendsOnlyHistoryToTheModelAndPreservesItsOutput() throws Exception {

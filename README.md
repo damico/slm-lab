@@ -44,7 +44,7 @@ Uma descrição precisa para a aula é:
 
 > “Especializamos um pequeno modelo pré-treinado em cinco tarefas. Nos quatro primeiros laboratórios usamos fine-tuning supervisionado. No quinto, comparamos esse ajuste com destilação offline de um professor maior, usando os mesmos exemplos de treino.”
 
-Essa frase descreve o desenho do projeto. Para afirmar que todos os modelos foram treinados ou que a destilação trouxe ganho, é necessário concluir as execuções e apresentar seus resultados.
+Os cinco laboratórios tiveram treinamento e testes concluídos. No Lab 05, o aluno destilado melhorou sobre o modelo original, mas ficou abaixo do SFT convencional no teste completo; a execução não demonstrou ganho adicional da destilação sobre os gabaritos.
 
 ## O que fazemos em cada laboratório
 
@@ -93,7 +93,7 @@ O laboratório começa com tabelas/textos estruturados. Não extrai PDFs automat
 
 ## Resultados registrados e estado das integrações
 
-O repositório contém resultados medidos dos **Labs 01, 02, 03 e 04**. Os demais têm roteiros e scripts; sua existência não significa que os treinos ou avaliações completos tenham sido concluídos.
+O repositório contém treinamento e avaliação completos dos **cinco laboratórios**, com métricas registradas e integrações no avaliador. Cada API de inferência precisa estar ativa para novos testes com os adaptadores.
 
 | Laboratório | Medidas registradas | Inferência web |
 |---|---|---|
@@ -101,7 +101,7 @@ O repositório contém resultados medidos dos **Labs 01, 02, 03 e 04**. Os demai
 | 02 | Treino e teste completos, com métricas e consumo registrados | Integrado ao avaliador quando a API SQL está ativa |
 | 03 | Teste completo: especialista 24,65%, base 6,09%, API 7,48%; quatro campos corretos por recibo | OCR/benchmark em CPU e adaptador real opcional no avaliador |
 | 04 | Treino e teste completos, com calibração e comparação registradas | Integrado ao avaliador quando a API de decisões está ativa |
-| 05 | Executor auditado no FinQA e lógica testada; geração do professor e treino CUDA ainda não medidos | Prévia; API Python disponível para usar após o treino |
+| 05 | Teste completo: SFT 45,16%, destilado 42,55%, professor 19,44%, base 2,27%; 1.147 exemplos | Benchmark dos quatro modelos em CPU e aluno destilado real opcional |
 
 Duas comparações ilustram por que precisamos medir:
 
@@ -184,3 +184,8 @@ As licenças e condições dos datasets/modelos são próprias de cada fonte. Co
 - [FinQA: A Dataset of Numerical Reasoning over Financial Data](https://arxiv.org/abs/2109.00122).
 
 As fontes específicas, revisões e convenções de avaliação estão documentadas em cada laboratório. A apresentação deve distinguir **o desenho do experimento**, **a implementação verificada** e **os resultados efetivamente medidos**.
+
+
+## Resultado final do Lab 05
+
+Em 15/10/2026, os quatro modelos foram avaliados nos mesmos 1.147 exemplos FinQA: original **2,27%**, SFT convencional **45,16%**, aluno destilado **42,55%** e professor **19,44%** de acerto completo pela métrica local de execução. A destilação ficou abaixo do SFT nesta execução. Tempos, VRAM, cobertura, intervalos e limites estão no [roteiro](laboratorio-05-slm-financeiro-finqa.md). Os cinco laboratórios estão integrados ao [avaliador web](avaliador/README.md), incluindo programas, resultados e evidências do FinQA.

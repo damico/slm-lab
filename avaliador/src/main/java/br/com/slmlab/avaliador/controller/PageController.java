@@ -34,7 +34,7 @@ public class PageController {
         Lab lab = find(id);
         model.addAttribute("lab", lab);
         model.addAttribute("active", id);
-        return switch (id) { case "01" -> "lab01/tools"; case "02" -> "lab02/sql"; case "03" -> "lab03/receipts"; case "04" -> "lab04/decisions"; default -> "pending"; };
+        return switch (id) { case "01" -> "lab01/tools"; case "02" -> "lab02/sql"; case "03" -> "lab03/receipts"; case "04" -> "lab04/decisions"; case "05" -> "lab05/finqa"; default -> "pending"; };
     }
 
     @GetMapping("/docs/{id}")
