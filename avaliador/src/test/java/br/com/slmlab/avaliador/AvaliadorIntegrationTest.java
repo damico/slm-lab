@@ -102,6 +102,8 @@ class AvaliadorIntegrationTest {
     }
 
     @Test void finqaForwardsOnlyContextAndRejectsInjectedReferences() throws Exception {
+        mvc.perform(get("/api/lab05/example").param("id","MSI/2007/page_70.pdf-1")).andExpect(status().isOk());
+        assertThat(lastQuery.get()).isEqualTo("id=MSI%2F2007%2Fpage_70.pdf-1");
         String input="{\"context\":{\"question\":\"Growth?\",\"sources\":{\"table_1\":\"100 to 118\"},\"table\":[[\"Revenue\",\"100\",\"118\"]]},\"example_id\":\"case:1\",\"mode\":\"recorded\"}";
         mvc.perform(get("/api/lab05/status")).andExpect(status().isOk()).andExpect(jsonPath("$.available").value(true));
         mvc.perform(post("/api/lab05/predict").contentType("application/json").content(input)).andExpect(status().isOk());

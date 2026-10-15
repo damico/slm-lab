@@ -4,8 +4,6 @@ import br.com.slmlab.avaliador.service.FinqaInferenceService;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -24,7 +22,7 @@ public class FinqaController {
     }
     @GetMapping("/catalog") public JsonNode catalog(){return inference.get("/catalog");}
     @GetMapping("/example/random") public JsonNode random(){return inference.get("/example/random");}
-    @GetMapping("/example") public JsonNode example(@RequestParam String id){return inference.get("/example?id="+URLEncoder.encode(id,StandardCharsets.UTF_8));}
+    @GetMapping("/example") public JsonNode example(@RequestParam String id){return inference.example(id);}
     @PostMapping("/predict") public JsonNode predict(@Valid @RequestBody FinqaRequest input){return inference.post("/predict",input.input());}
     @PostMapping(value="/predict/stream",produces=MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(@Valid @RequestBody FinqaRequest input){

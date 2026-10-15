@@ -29,6 +29,8 @@ class FinqaWebTest(unittest.TestCase):
         self.assertTrue(r['slm']['correct']);self.assertEqual(len(r['recorded']),4)
         self.assertFalse(self.lab.health()['model_loaded']);self.assertTrue(r['requires_review'])
     def test_catalog_and_example_do_not_expose_references(self):
+        self.assertIsInstance(self.lab.catalog()['examples'],list)
+        self.assertEqual(self.lab.catalog()['examples'][0]['id'],'case:1')
         for value in [self.lab.catalog(),self.lab.example(self.lab.rows[0])]:
             text=json.dumps(value);self.assertNotIn('gold',text);self.assertNotIn('program',text)
     def test_edited_context_drops_reference_and_recordings_from_real_inference(self):

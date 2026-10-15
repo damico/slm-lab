@@ -9,6 +9,10 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class FinqaInferenceService extends SqlInferenceService {
     public FinqaInferenceService(@Value("${avaliador.finqa-inference-url}") String url,ObjectMapper mapper){super(url,mapper);}
+    public com.fasterxml.jackson.databind.JsonNode example(String id){
+        try{return client.get().uri("/example?id={id}",id).retrieve().body(com.fasterxml.jackson.databind.JsonNode.class);}
+        catch(RestClientException error){throw translate(error);}
+    }
     @Override protected ResponseStatusException translate(RestClientException error){
         if(error instanceof RestClientResponseException response && response.getStatusCode().value()==400)
             return new ResponseStatusException(HttpStatus.BAD_REQUEST,"Confira pergunta, fontes e tabela. Entradas editadas precisam do modo de inferência real; não envie gabaritos.");

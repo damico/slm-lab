@@ -55,8 +55,8 @@ class FinqaLab:
         return {'id':row['id'], 'document':row.get('document'), 'context':row['context'], 'eligible':row.get('eligible', True)}
 
     def catalog(self):
-        return {'examples':[{'id':r['id'], 'question':r['context']['question']} for r in self.rows],
-                'metrics':self.metrics, **self.health()}
+        return {**self.health(), 'examples':[{'id':r['id'], 'question':r['context']['question']} for r in self.rows],
+                'metrics':self.metrics}
 
     def inspect(self, prediction, context, reference=None):
         out = {k:prediction[k] for k in ['status','text','latency_s','input_tokens','output_tokens'] if k in prediction}
