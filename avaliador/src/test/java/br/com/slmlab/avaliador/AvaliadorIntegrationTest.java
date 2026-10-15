@@ -113,6 +113,15 @@ class AvaliadorIntegrationTest {
         mvc.perform(post("/api/lab05/predict").contentType("application/json").content(input.replace("\"mode\":", "\"gold\":18,\"mode\":"))).andExpect(status().isBadRequest());
     }
 
+    @Test void browserReceivesFreshStatusesAndVersionedScripts() throws Exception {
+        mvc.perform(get("/api/lab01/status")).andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"));
+        String html=mvc.perform(get("/labs/01")).andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+                .andReturn().getResponse().getContentAsString();
+        var match=java.util.regex.Pattern.compile("/js/tools-[a-f0-9]{32}\\.js").matcher(html);
+        assertThat(match.find()).isTrue();
+        mvc.perform(get(match.group())).andExpect(status().isOk());
+    }
+
     @Test void sendsOnlyHistoryToTheModelAndPreservesItsOutput() throws Exception {
         mvc.perform(post("/api/lab04/predict").contentType("application/json")
             .content("{\"history\":[{\"role\":\"customer\",\"text\":\"Hello\"}],\"compare\":false}"))

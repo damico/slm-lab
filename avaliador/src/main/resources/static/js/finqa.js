@@ -1,6 +1,6 @@
 (()=>{'use strict';
 const $=id=>document.getElementById(id),labels={base:'Qwen original',sft:'Fine-tuning convencional',distilled:'Aluno destilado',teacher:'Professor Qwen3-8B'};
-let selected=null,live=false,busy=false,result=null,generation=0;
+let selected=null,live=false,busy=false,result=null,generation=0,connected=false,catalogLoaded=false,initializing=false;
 const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 const notice=text=>{$('finqa-error').hidden=!text;$('finqa-error').textContent=text;};
 const number=value=>typeof value==='number'?value.toLocaleString('pt-BR',{maximumFractionDigits:5}):String(value);
@@ -24,5 +24,26 @@ async function predict(){if(busy)return;notice('');let payload;try{payload={cont
 $('finqa-example').addEventListener('change',()=>{if($('finqa-example').value)selectExample($('finqa-example').value).catch(e=>notice(e.message));});$('finqa-random').addEventListener('click',async()=>{try{const token=++generation;const e=await request('/example/random');if(token===generation)choose(e);}catch(e){notice(e.message);}});
 $('finqa-demo').addEventListener('click',()=>{generation++;choose({context:{question:'Revenue increased from 100 million to 118 million. What was the percentage growth? Return the answer as a percentage number.',sources:{table_1:'Revenue | previous year: 100 million | current year: 118 million'},table:[['Revenue (millions)','Previous year','Current year'],['Revenue','100','118']]}});if(live)$('finqa-mode').value='specialist';});
 ['finqa-question','finqa-table','finqa-sources'].forEach(id=>$(id).addEventListener('input',edited));$('finqa-predict').addEventListener('click',predict);$('finqa-clear').addEventListener('click',()=>{localStorage.removeItem('slm-finqa-history');drawHistory();});$('finqa-export').addEventListener('click',()=>{if(!result)return;const url=URL.createObjectURL(new Blob([JSON.stringify(result,null,2)],{type:'application/json'}));const a=node('a');a.href=url;a.download='calculo-finqa.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
-(async()=>{drawHistory();try{const c=await request('/catalog');live=c.live_enabled;const select=$('finqa-example');select.replaceChildren(node('option','Selecione um exemplo'));select.firstChild.value='';c.examples.forEach((e,i)=>{const o=node('option',`${i+1}. ${e.question.slice(0,110)}`);o.value=e.id;select.append(o);});$('finqa-mode').querySelector('[value="specialist"]').disabled=!live;if(live)$('finqa-mode').value='specialist';$('finqa-service').textContent=live?'Benchmark disponível em CPU. Inferência real carrega o aluno destilado em uma GPU.':'Benchmark disponível em CPU. Habilite GPU no serviço para entradas novas.';$('finqa-predict').disabled=false;if(c.examples.length)await selectExample(c.examples[0].id);}catch(e){notice(e.message);}})();
+function updateConnection(status){
+ if(busy)return;
+ const wasConnected=connected,wasLive=live;connected=Boolean(status?.available);live=connected&&Boolean(status.inference?.live_enabled);
+ $('finqa-mode').querySelector('[value="specialist"]').disabled=!live;
+ if(live&&!wasLive){$('finqa-mode').value='specialist';notice('');}
+ if(!live&&$('finqa-mode').value==='specialist')$('finqa-mode').value='recorded';
+ $('finqa-service').textContent=!connected?'API desconectada / tentando reconectar':live?'Inferência real disponível com o aluno destilado.':'Benchmark em CPU / inferência real desabilitada';
+ if(connected&&!wasConnected)notice('');$('finqa-predict').disabled=busy||!connected||!catalogLoaded;
+ if(connected&&!catalogLoaded&&!initializing)initialize();
+}
+async function initialize(){
+ if(initializing)return;initializing=true;
+ try{const c=await request('/catalog');updateConnection({available:true,inference:c});
+ const select=$('finqa-example');select.replaceChildren(node('option','Selecione um exemplo'));select.firstChild.value='';
+ c.examples.forEach((e,i)=>{const o=node('option',`${i+1}. ${e.question.slice(0,110)}`);o.value=e.id;select.append(o);});
+ if(c.examples.length&&!$('finqa-question').value.trim())await selectExample(c.examples[0].id);
+ catalogLoaded=true;$('finqa-predict').disabled=!connected;
+ }catch(e){connected=false;notice(e.message);$('finqa-service').textContent='API desconectada / tentando reconectar';$('finqa-predict').disabled=true;}
+ finally{initializing=false;}
+}
+window.addEventListener('slm-services-status',event=>updateConnection(event.detail['05']));
+drawHistory();initialize();
 })();

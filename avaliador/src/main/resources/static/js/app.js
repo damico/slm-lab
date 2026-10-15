@@ -11,29 +11,28 @@
     try { localStorage.setItem('slm-theme', root.dataset.bsTheme); } catch (_) {}
     window.dispatchEvent(new CustomEvent('slm-theme-change'));
   });
+  let refreshing=false, refreshAgain=false;
   async function refreshStatus() {
+    if(refreshing){refreshAgain=true;return;}
+    refreshing=true;
     try {
-      const response = await fetch('/api/status', {signal: AbortSignal.timeout(7000)});
-      if (!response.ok) throw new Error('status');
-      window.labStatus = await response.json();
-    } catch (_) { window.labStatus = {available:false, comparison_enabled:false}; }
-    let sqlAvailable=false;
-    try { const response=await fetch('/api/lab02/status',{signal:AbortSignal.timeout(7000)}); sqlAvailable=response.ok && (await response.json()).available; } catch (_) {}
-    let toolsAvailable=false;
-    try { const response=await fetch('/api/lab01/status',{signal:AbortSignal.timeout(7000)}); toolsAvailable=response.ok && (await response.json()).available; } catch (_) {}
-    let receiptsAvailable=false;
-    try { const response=await fetch('/api/lab03/status',{signal:AbortSignal.timeout(7000)}); receiptsAvailable=response.ok && (await response.json()).available; } catch (_) {}
-    let finqaAvailable=false;
-    try { const response=await fetch('/api/lab05/status',{signal:AbortSignal.timeout(7000)}); finqaAvailable=response.ok && (await response.json()).available; } catch (_) {}
-    document.querySelectorAll('[data-api-status]').forEach(el => {
-      const connected=[toolsAvailable?'Ferramentas':null,receiptsAvailable?'Recibos':null,finqaAvailable?'Finanças':null,sqlAvailable?'SQL':null,window.labStatus.available?'Decisões':null].filter(Boolean);
-      el.textContent=connected.length ? connected.join(' + ')+' / conectado' : 'APIs offline';
-    });
-    document.querySelectorAll('[data-status-dot]').forEach(el => el.classList.toggle('ready', window.labStatus.available||sqlAvailable||toolsAvailable||receiptsAvailable||finqaAvailable));
-    window.dispatchEvent(new CustomEvent('slm-status', {detail:window.labStatus}));
+      const paths={'01':'/api/lab01/status','02':'/api/lab02/status','03':'/api/lab03/status','04':'/api/status','05':'/api/lab05/status'};
+      const states=Object.fromEntries(await Promise.all(Object.entries(paths).map(async([id,path])=>{
+        try {const response=await fetch(path,{cache:'no-store',signal:AbortSignal.timeout(7000)});if(!response.ok)throw Error('status');return [id,await response.json()];}
+        catch(_){return [id,{available:false,comparison_enabled:false}];}
+      })));
+      window.labServices=states;window.labStatus=states['04'];
+      const names={'01':'Ferramentas','02':'SQL','03':'Recibos','04':'Decisões','05':'Finanças'};
+      const connected=Object.keys(names).filter(id=>states[id].available).map(id=>names[id]);
+      document.querySelectorAll('[data-api-status]').forEach(el=>el.textContent=connected.length?connected.join(' + ')+' / conectado':'APIs offline');
+      document.querySelectorAll('[data-status-dot]').forEach(el=>el.classList.toggle('ready',connected.length>0));
+      window.dispatchEvent(new CustomEvent('slm-services-status',{detail:states}));
+      window.dispatchEvent(new CustomEvent('slm-status',{detail:window.labStatus}));
+    } finally {refreshing=false;if(refreshAgain){refreshAgain=false;refreshStatus();}}
   }
-  refreshStatus();
-  setInterval(refreshStatus, 30000);
+  refreshStatus();setInterval(refreshStatus,30000);
+  window.addEventListener('focus',refreshStatus);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshStatus();});
   const canvas = document.getElementById('benchmark-chart');
   if (canvas && window.Chart) {
     const colors = ['#b297ff','#b7f66a','#64606e','#ede0a4'];

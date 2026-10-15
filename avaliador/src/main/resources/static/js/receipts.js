@@ -1,11 +1,11 @@
 (() => {
  'use strict';const $=id=>document.getElementById(id),labels={company:'Empresa',date:'Data',address:'Endereço',total:'Total'};
  const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
- let catalog=null,result=null,request=null,selected=null,busy=false,live=false,paid=false,previewUrl=null,origin='Exemplo SROIE';
+ let catalog=null,result=null,request=null,selected=null,busy=false,live=false,paid=false,connected=false,initializing=false,previewUrl=null,origin='Exemplo SROIE';
  const seconds=n=>Number.isFinite(n)?n.toFixed(2)+' s':'sem medida';
  const notice=text=>{$('receipt-error').hidden=!text;$('receipt-error').textContent=text;};
  async function api(path,body){const r=await fetch('/api/lab03'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(175000)});const d=await r.json();if(!r.ok)throw new Error(d.message||'Falha no serviço de recibos.');return d;}
- function controls(){['receipt-example','receipt-random','receipt-predict','receipt-upload'].forEach(id=>$(id).disabled=busy||!catalog);['receipt-text','receipt-mode'].forEach(id=>$(id).disabled=busy);$('receipt-compare').disabled=busy||!paid;$('receipt-csv').disabled=busy||!result?.slm.schema_valid;}
+ function controls(){['receipt-example','receipt-random','receipt-predict','receipt-upload'].forEach(id=>$(id).disabled=busy||!catalog||!connected);['receipt-text','receipt-mode'].forEach(id=>$(id).disabled=busy);$('receipt-compare').disabled=busy||!paid;$('receipt-csv').disabled=busy||!result?.slm.schema_valid;}
  function clear(){result=null;['receipt-recorded-panel','receipt-live-panel','receipt-journey-panel','receipt-details-panel','receipt-gold-match'].forEach(id=>$(id).hidden=true);$('receipt-fields').replaceChildren();$('receipt-metrics').replaceChildren();$('receipt-json').textContent='';$('receipt-answer').textContent='Empresa, data, endereço e total aparecerão aqui.';$('receipt-result-status').textContent='Aguardando teste';$('receipt-csv').disabled=true;}
  function releasePreview(){if(previewUrl){URL.revokeObjectURL(previewUrl);previewUrl=null;}}
  function choose(e){clear();notice('');releasePreview();selected=e;$('receipt-example').value=e.id;$('receipt-text').value=e.text;origin='SROIE / '+e.id;$('receipt-origin').textContent=e.ocr_empty?'O OCR deste exemplo ficou vazio; o recibo foi preservado no teste.':'Texto OCR preparado pelo laboratório.';$('receipt-preview').hidden=!e.has_image;if(e.has_image)$('receipt-preview').src='/api/lab03/image?id='+encodeURIComponent(e.id);$('receipt-stage').textContent='Recibo '+e.id+' pronto para testar.';}
@@ -33,5 +33,24 @@
  $('receipt-download').addEventListener('click',()=>{if(result)download(JSON.stringify({request,result},null,2),'teste-recibo.json','application/json');});
  $('receipt-csv').addEventListener('click',()=>{if(!result?.slm.schema_valid)return;const value=v=>{let s=v==null?'':String(v);if(/^[=+@-]/.test(s.trimStart()))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};download('\uFEFF'+Object.keys(labels).join(',')+'\n'+Object.keys(labels).map(k=>value(result.slm.fields[k])).join(',')+'\n','recibo.csv','text/csv;charset=utf-8');});
  $('receipt-clear').addEventListener('click',()=>{localStorage.removeItem('slm-receipts-history');history();});
- (async()=>{history();try{const status=await api('/status');if(!status.available)throw new Error(status.message);live=status.inference.live_enabled;paid=status.comparison_enabled;$('receipt-live-option').disabled=!live;if(live){$('receipt-mode').value='specialist';$('receipt-mode').dispatchEvent(new Event('change'));}$('receipt-connection').textContent=live?'Inferência real disponível':'Benchmark e OCR conectados / sem GPU';catalog=await api('/catalog');catalog.examples.forEach((e,index)=>{const first=e.text.split('\n').find(line=>/[A-Z]{3,}/i.test(line))||'Recibo';const option=node('option','Recibo '+String(index+1).padStart(3,'0')+' / '+(e.ocr_empty?'OCR vazio':first.slice(0,55)));option.value=e.id;$('receipt-example').append(option);});choose(catalog.examples[0]);controls();}catch(e){notice(e.message);$('receipt-connection').textContent='API desconectada';}})();
+ function updateConnection(status){
+  if(busy)return;
+  const wasConnected=connected,wasLive=live;connected=Boolean(status?.available);live=connected&&Boolean(status.inference?.live_enabled);paid=connected&&Boolean(status.comparison_enabled);
+  $('receipt-live-option').disabled=!live;
+  if(live&&!wasLive){notice('');$('receipt-mode').value='specialist';$('receipt-mode').dispatchEvent(new Event('change'));}
+  if(!live&&$('receipt-mode').value==='specialist')$('receipt-mode').value='recorded';
+  $('receipt-connection').textContent=!connected?'API desconectada / tentando reconectar':live?'Inferência real disponível':'Benchmark conectado / inferência real desabilitada';
+  if(connected&&!wasConnected)notice('');controls();
+  if(connected&&!catalog&&!initializing)initialize();
+ }
+ async function initialize(){
+  if(initializing)return;initializing=true;
+  try{const status=await api('/status');updateConnection(status);if(!status.available)throw Error(status.message||'API desconectada. Reconexão automática em andamento.');
+   catalog=await api('/catalog');catalog.examples.forEach((e,index)=>{const first=e.text.split('\n').find(line=>/[A-Z]{3,}/i.test(line))||'Recibo';const option=node('option','Recibo '+String(index+1).padStart(3,'0')+' / '+(e.ocr_empty?'OCR vazio':first.slice(0,55)));option.value=e.id;$('receipt-example').append(option);});
+   if(!$('receipt-text').value.trim())choose(catalog.examples[0]);controls();
+  }catch(error){connected=false;notice(error.message);$('receipt-connection').textContent='API desconectada / tentando reconectar';controls();}
+  finally{initializing=false;}
+ }
+ window.addEventListener('slm-services-status',event=>updateConnection(event.detail['03']));
+ history();initialize();
 })();

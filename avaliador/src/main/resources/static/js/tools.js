@@ -1,11 +1,11 @@
 (() => {
  'use strict';const $=id=>document.getElementById(id);
  const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;};
- let catalog=null,result=null,request=null,busy=false,live=false,paid=false,selected=null;
+ let catalog=null,result=null,request=null,busy=false,live=false,paid=false,connected=false,initializing=false,selected=null;
  const seconds=n=>Number.isFinite(n)?n.toFixed(2)+' s':'sem medida';
  const notice=message=>{$('tools-error').hidden=!message;$('tools-error').textContent=message;};
  async function api(path,body){const r=await fetch('/api/lab01'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(175000)});const d=await r.json();if(!r.ok)throw new Error(d.message||'Falha no serviço de ferramentas.');return d;}
- function controls(){['tools-example','tools-random','tools-predict'].forEach(id=>$(id).disabled=busy||!catalog);['tools-query','tools-catalog','tools-mode'].forEach(id=>$(id).disabled=busy);$('tools-compare').disabled=busy||!paid;}
+ function controls(){['tools-example','tools-random','tools-predict'].forEach(id=>$(id).disabled=busy||!catalog||!connected);['tools-query','tools-catalog','tools-mode'].forEach(id=>$(id).disabled=busy);$('tools-compare').disabled=busy||!paid;}
  function clear(){result=null;['tools-recorded-panel','tools-live-panel','tools-journey-panel','tools-details-panel','tools-gold-match'].forEach(id=>$(id).hidden=true);$('tools-calls').replaceChildren();$('tools-metrics').replaceChildren();$('tools-json').textContent='';$('tools-answer').textContent='As ações propostas aparecerão aqui.';$('tools-result-status').textContent='Aguardando teste';}
  function toolsCards(tools){$('tools-cards').replaceChildren();if(!Array.isArray(tools))return;tools.forEach(t=>{const card=node('details',undefined,'dataset-tool');card.append(node('summary',t.name||'Ferramenta'),node('p',t.description||'','small muted'));$('tools-cards').append(card);});}
  function choose(e){clear();notice('');selected=e;$('tools-query').value=e.query;$('tools-catalog').value=JSON.stringify(e.tools,null,2);toolsCards(e.tools);if(!catalog.examples.some(x=>x.id===e.id)){catalog.examples.push(e);const o=node('option',e.id+' / '+e.query.slice(0,65));o.value=e.id;$('tools-example').append(o);}$('tools-example').value=e.id;$('tools-stage').textContent='Exemplo '+e.id+' pronto para testar.';}
@@ -30,5 +30,24 @@
  $('tools-predict').addEventListener('click',async()=>{try{notice('');const tools=JSON.parse($('tools-catalog').value);if(!Array.isArray(tools)||!tools.length)throw new Error('O catálogo precisa ser um array JSON de ferramentas.');if($('tools-mode').value==='recorded'&&!selected)throw new Error('Escolha um exemplo registrado ou ative a inferência real para entradas editadas.');request={query:$('tools-query').value,tools,mode:$('tools-mode').value,compare:$('tools-compare').checked};busy=true;controls();clear();await stream(request);$('tools-stage').textContent='Teste concluído.';}catch(e){notice(e.message);$('tools-stage').textContent='Confira a entrada e tente novamente.';}finally{busy=false;controls();}});
  $('tools-download').addEventListener('click',()=>{if(!result)return;const url=URL.createObjectURL(new Blob([JSON.stringify({request,result},null,2)],{type:'application/json'})),a=node('a');a.href=url;a.download='teste-ferramentas.json';a.click();URL.revokeObjectURL(url);});
  $('tools-clear').addEventListener('click',()=>{localStorage.removeItem('slm-tools-history');history();});
- (async()=>{history();try{const status=await api('/status');if(!status.available)throw new Error(status.message);live=status.inference.live_enabled;paid=status.comparison_enabled;$('tools-live-option').disabled=!live;if(live){$('tools-mode').value='specialist';$('tools-mode').dispatchEvent(new Event('change'));}$('tools-connection').textContent=live?'Inferência real disponível':'Benchmark conectado / sem GPU';catalog=await api('/catalog');catalog.examples.forEach(e=>{const o=node('option',e.id+' / '+e.query.slice(0,65));o.value=e.id;$('tools-example').append(o);});choose(catalog.examples[0]);controls();}catch(e){notice(e.message);$('tools-connection').textContent='API desconectada';}})();
+ function updateConnection(status){
+  if(busy)return;
+  const wasConnected=connected,wasLive=live;connected=Boolean(status?.available);live=connected&&Boolean(status.inference?.live_enabled);paid=connected&&Boolean(status.comparison_enabled);
+  $('tools-live-option').disabled=!live;
+  if(live&&!wasLive){notice('');$('tools-mode').value='specialist';$('tools-mode').dispatchEvent(new Event('change'));}
+  if(!live&&$('tools-mode').value==='specialist')$('tools-mode').value='recorded';
+  $('tools-connection').textContent=!connected?'API desconectada / tentando reconectar':live?'Inferência real disponível':'Benchmark conectado / inferência real desabilitada';
+  if(connected&&!wasConnected)notice('');controls();
+  if(connected&&!catalog&&!initializing)initialize();
+ }
+ async function initialize(){
+  if(initializing)return;initializing=true;
+  try{const status=await api('/status');updateConnection(status);if(!status.available)throw Error(status.message||'API desconectada. Reconexão automática em andamento.');
+   catalog=await api('/catalog');catalog.examples.forEach(e=>{const o=node('option',e.id+' / '+e.query.slice(0,65));o.value=e.id;$('tools-example').append(o);});
+   if(!$('tools-query').value.trim())choose(catalog.examples[0]);controls();
+  }catch(error){connected=false;notice(error.message);$('tools-connection').textContent='API desconectada / tentando reconectar';controls();}
+  finally{initializing=false;}
+ }
+ window.addEventListener('slm-services-status',event=>updateConnection(event.detail['01']));
+ history();initialize();
 })();
