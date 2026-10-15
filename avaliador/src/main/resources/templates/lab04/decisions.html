@@ -3,7 +3,7 @@
 <head><title>Decisões</title></head>
 <body><main layout:fragment="content" id="decision-lab">
 <div class="page-heading"><div><p class="eyebrow">LABORATÓRIO 04 / ABCD</p><h1>O que acontece agora<span class="accent">?</span></h1><p class="subtitle">Um histórico de atendimento. 31 opções. Uma decisão para inspecionar.</p></div><a class="btn btn-outline-secondary" th:href="@{/docs/04}"><svg class="icon"><use href="#i-book"/></svg>Roteiro do laboratório</a></div>
-<div class="session-strip"><span class="pill purple"><span class="dot purple"></span>Qwen3-1.7B + QLoRA</span><span>Probabilidades calibradas</span><span>Regras recuperadas com TF-IDF</span><span class="ms-auto muted" id="model-state">Verificando conexão</span></div>
+<div class="session-strip"><span class="pill purple"><span class="dot purple"></span>Qwen3-1.7B + QLoRA</span><span>Probabilidades calibradas</span><span>Regras recuperadas com TF-IDF</span><span th:replace="~{fragments/inference-status :: badge('04')}"></span></div>
 <div id="connection-notice" class="alert alert-secondary" role="status" hidden></div>
 <div id="request-error" class="alert alert-danger" role="alert" hidden></div>
 <div class="decision-grid">

@@ -39,7 +39,7 @@
   $('receipt-live-option').disabled=!live;
   if(live&&!wasLive){notice('');$('receipt-mode').value='specialist';$('receipt-mode').dispatchEvent(new Event('change'));}
   if(!live&&$('receipt-mode').value==='specialist')$('receipt-mode').value='recorded';
-  $('receipt-connection').textContent=!connected?'API desconectada / tentando reconectar':live?'Inferência real disponível':'Benchmark conectado / inferência real desabilitada';
+  window.updateInferenceStatus('03',status);
   if(connected&&!wasConnected)notice('');controls();
   if(connected&&!catalog&&!initializing)initialize();
  }
@@ -48,7 +48,7 @@
   try{const status=await api('/status');updateConnection(status);if(!status.available)throw Error(status.message||'API desconectada. Reconexão automática em andamento.');
    catalog=await api('/catalog');catalog.examples.forEach((e,index)=>{const first=e.text.split('\n').find(line=>/[A-Z]{3,}/i.test(line))||'Recibo';const option=node('option','Recibo '+String(index+1).padStart(3,'0')+' / '+(e.ocr_empty?'OCR vazio':first.slice(0,55)));option.value=e.id;$('receipt-example').append(option);});
    if(!$('receipt-text').value.trim())choose(catalog.examples[0]);controls();
-  }catch(error){connected=false;notice(error.message);$('receipt-connection').textContent='API desconectada / tentando reconectar';controls();}
+  }catch(error){connected=false;notice(error.message);window.updateInferenceStatus('03',{available:false});controls();}
   finally{initializing=false;}
  }
  window.addEventListener('slm-services-status',event=>updateConnection(event.detail['03']));

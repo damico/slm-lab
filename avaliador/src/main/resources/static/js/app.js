@@ -11,6 +11,14 @@
     try { localStorage.setItem('slm-theme', root.dataset.bsTheme); } catch (_) {}
     window.dispatchEvent(new CustomEvent('slm-theme-change'));
   });
+  window.updateInferenceStatus=(labId,status)=>{
+    const state=!status?'checking':!status.available?'offline':status.inference?.live_enabled===false?'benchmark':'ready';
+    const labels={checking:'Verificando conexão',ready:'Inferência real disponível',benchmark:'Somente benchmark disponível',offline:'Inferência indisponível / reconectando'};
+    document.querySelectorAll('[data-lab-inference]').forEach(badge=>{
+      if(badge.dataset.labInference!==labId)return;
+      badge.dataset.state=state;badge.querySelector('[data-inference-label]').textContent=labels[state];
+    });
+  };
   let refreshing=false, refreshAgain=false;
   async function refreshStatus() {
     if(refreshing){refreshAgain=true;return;}
@@ -22,6 +30,7 @@
         catch(_){return [id,{available:false,comparison_enabled:false}];}
       })));
       window.labServices=states;window.labStatus=states['04'];
+      Object.entries(states).forEach(([id,state])=>window.updateInferenceStatus(id,state));
       const names={'01':'Ferramentas','02':'SQL','03':'Recibos','04':'Decisões','05':'Finanças'};
       const connected=Object.keys(names).filter(id=>states[id].available).map(id=>names[id]);
       document.querySelectorAll('[data-api-status]').forEach(el=>el.textContent=connected.length?connected.join(' + ')+' / conectado':'APIs offline');

@@ -1,0 +1,4 @@
+<!doctype html>
+<html lang="pt-BR" xmlns:th="http://www.thymeleaf.org"><body>
+<span th:fragment="badge(labId)" class="inference-status ms-auto" th:attr="data-lab-inference=${labId}" data-state="checking" role="status" aria-live="polite"><span class="inference-status-dot" aria-hidden="true"></span><span data-inference-label>Verificando conexão</span></span>
+</body></html>

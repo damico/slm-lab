@@ -30,7 +30,7 @@ function updateConnection(status){
  $('finqa-mode').querySelector('[value="specialist"]').disabled=!live;
  if(live&&!wasLive){$('finqa-mode').value='specialist';notice('');}
  if(!live&&$('finqa-mode').value==='specialist')$('finqa-mode').value='recorded';
- $('finqa-service').textContent=!connected?'API desconectada / tentando reconectar':live?'Inferência real disponível com o aluno destilado.':'Benchmark em CPU / inferência real desabilitada';
+ window.updateInferenceStatus('05',status);
  if(connected&&!wasConnected)notice('');$('finqa-predict').disabled=busy||!connected||!catalogLoaded;
  if(connected&&!catalogLoaded&&!initializing)initialize();
 }
@@ -41,7 +41,7 @@ async function initialize(){
  c.examples.forEach((e,i)=>{const o=node('option',`${i+1}. ${e.question.slice(0,110)}`);o.value=e.id;select.append(o);});
  if(c.examples.length&&!$('finqa-question').value.trim())await selectExample(c.examples[0].id);
  catalogLoaded=true;$('finqa-predict').disabled=!connected;
- }catch(e){connected=false;notice(e.message);$('finqa-service').textContent='API desconectada / tentando reconectar';$('finqa-predict').disabled=true;}
+ }catch(e){connected=false;notice(e.message);window.updateInferenceStatus('05',{available:false});$('finqa-predict').disabled=true;}
  finally{initializing=false;}
 }
 window.addEventListener('slm-services-status',event=>updateConnection(event.detail['05']));

@@ -36,7 +36,7 @@
   $('tools-live-option').disabled=!live;
   if(live&&!wasLive){notice('');$('tools-mode').value='specialist';$('tools-mode').dispatchEvent(new Event('change'));}
   if(!live&&$('tools-mode').value==='specialist')$('tools-mode').value='recorded';
-  $('tools-connection').textContent=!connected?'API desconectada / tentando reconectar':live?'Inferência real disponível':'Benchmark conectado / inferência real desabilitada';
+  window.updateInferenceStatus('01',status);
   if(connected&&!wasConnected)notice('');controls();
   if(connected&&!catalog&&!initializing)initialize();
  }
@@ -45,7 +45,7 @@
   try{const status=await api('/status');updateConnection(status);if(!status.available)throw Error(status.message||'API desconectada. Reconexão automática em andamento.');
    catalog=await api('/catalog');catalog.examples.forEach(e=>{const o=node('option',e.id+' / '+e.query.slice(0,65));o.value=e.id;$('tools-example').append(o);});
    if(!$('tools-query').value.trim())choose(catalog.examples[0]);controls();
-  }catch(error){connected=false;notice(error.message);$('tools-connection').textContent='API desconectada / tentando reconectar';controls();}
+  }catch(error){connected=false;notice(error.message);window.updateInferenceStatus('01',{available:false});controls();}
   finally{initializing=false;}
  }
  window.addEventListener('slm-services-status',event=>updateConnection(event.detail['01']));

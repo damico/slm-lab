@@ -113,7 +113,7 @@
     } catch (failure) { state.loaded=false;error(failure.message); }
   }
   function updateStatus(status) {
-    $('model-state').textContent = status.available ? 'Modelo conectado' : 'API offline';
+    window.updateInferenceStatus('04',status);
     $('connection-notice').hidden = status.available;
     $('connection-notice').textContent = 'A API Python ainda não está disponível. Inicie o serviço do Lab 04 e confira a configuração LAB04_API_URL.';
     $('comparison-hint').textContent = status.comparison_enabled
